@@ -1,6 +1,18 @@
 import { useState, useEffect } from "react";
-import { Detail, LaunchProps, BrowserExtension, Clipboard, getSelectedText } from "@raycast/api";
+import {
+  Detail,
+  LaunchProps,
+  BrowserExtension,
+  Clipboard,
+  getSelectedText,
+  ActionPanel,
+  Action,
+  Keyboard,
+} from "@raycast/api";
 import { urlLog } from "./utils/logger";
+import { fetchHtml } from "./utils/fetcher";
+import { parseArticle } from "./utils/readability";
+import { formatArticle } from "./utils/markdown";
 
 type ReaderArguments = {
   url: string;
@@ -83,42 +95,106 @@ async function resolveUrl(argumentUrl?: string): Promise<{ url: string; source: 
   return null;
 }
 
+interface ArticleState {
+  markdown: string;
+  title: string;
+  url: string;
+  source: string;
+}
+
 export default function Command(props: LaunchProps<{ arguments: ReaderArguments }>) {
-  const [urlInfo, setUrlInfo] = useState<{ url: string; source: string } | null>(null);
+  const [article, setArticle] = useState<ArticleState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadUrl() {
+    async function loadArticle() {
       urlLog.log("session:start", { argumentUrl: props.arguments.url });
-      const result = await resolveUrl(props.arguments.url);
-      if (result) {
-        urlLog.log("session:ready", { url: result.url, source: result.source });
-        setUrlInfo(result);
-      } else {
+
+      // Step 1: Resolve URL
+      const urlResult = await resolveUrl(props.arguments.url);
+      if (!urlResult) {
         const errorMsg =
           props.arguments.url && props.arguments.url.trim()
             ? `Invalid URL: "${props.arguments.url}"`
             : "No URL found. Provide a URL, select a URL, copy one to clipboard, or open a page in your browser.";
         urlLog.error("session:error", { error: errorMsg });
         setError(errorMsg);
+        setIsLoading(false);
+        return;
       }
+
+      urlLog.log("session:url-resolved", { url: urlResult.url, source: urlResult.source });
+
+      // Step 2: Fetch HTML
+      const fetchResult = await fetchHtml(urlResult.url);
+      if (!fetchResult.success) {
+        setError(fetchResult.error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 3: Parse with Readability
+      const parseResult = parseArticle(fetchResult.data.html, fetchResult.data.url);
+      if (!parseResult.success) {
+        setError(parseResult.error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      // Step 4: Convert to Markdown
+      const formatted = formatArticle(
+        parseResult.article.title,
+        parseResult.article.content,
+        parseResult.article.byline,
+        parseResult.article.siteName,
+      );
+
+      urlLog.log("session:ready", {
+        url: urlResult.url,
+        title: formatted.title,
+        markdownLength: formatted.markdown.length,
+      });
+
+      setArticle({
+        markdown: formatted.markdown,
+        title: formatted.title,
+        url: urlResult.url,
+        source: urlResult.source,
+      });
       setIsLoading(false);
     }
-    loadUrl();
+
+    loadArticle();
   }, [props.arguments.url]);
 
   if (isLoading) {
     return <Detail isLoading={true} markdown="" />;
   }
 
-  if (error || !urlInfo) {
-    return <Detail markdown={`# Error\n\n${error || "Unable to resolve URL"}`} />;
+  if (error || !article) {
+    return <Detail markdown={`# Error\n\n${error || "Unable to load article"}`} />;
   }
 
   return (
     <Detail
-      markdown={`# Reader\n\n**URL:** ${urlInfo.url}\n\n*Source: ${urlInfo.source}*\n\n---\n\n*Content will be rendered here...*`}
+      markdown={article.markdown}
+      navigationTitle={article.title}
+      actions={
+        <ActionPanel>
+          <Action.CopyToClipboard
+            title="Copy as Markdown"
+            content={article.markdown}
+            shortcut={Keyboard.Shortcut.Common.Copy}
+          />
+          <Action.OpenInBrowser title="Open in Browser" url={article.url} shortcut={Keyboard.Shortcut.Common.Open} />
+          <Action.CopyToClipboard
+            title="Copy URL"
+            content={article.url}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
+        </ActionPanel>
+      }
     />
   );
 }

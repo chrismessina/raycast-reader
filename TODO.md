@@ -46,10 +46,10 @@
   - `session:ready/error` — final outcome
 
 ### 1.3 Basic Fetch & Display
-- [ ] Create `src/utils/fetcher.ts` — fetch HTML from URL
-- [ ] Handle basic errors (network, 4xx, 5xx, robots.txt rejection)
-- [ ] Display raw HTML in `<Detail>` as proof of concept
-- [ ] Add logging for fetch operations:
+- [x] Create `src/utils/fetcher.ts` — fetch HTML from URL
+- [x] Handle basic errors (network, 4xx, 5xx, robots.txt rejection)
+- [x] Display raw HTML in `<Detail>` as proof of concept
+- [x] Add logging for fetch operations:
   - `fetch:start` — request initiated with URL
   - `fetch:success` — response received with status, content length
   - `fetch:error` — failure with error type, status code
@@ -61,19 +61,19 @@
 ## Phase 2: Content Processing
 
 ### 2.1 Readability Integration
-- [ ] Create `src/utils/readability.ts`
-- [ ] Implement `isProbablyReaderable()` pre-check
-- [ ] Parse with `new Readability(document).parse()`
-- [ ] Extract: `title`, `content`, `byline`, `siteName`, `excerpt`
-- [ ] Add logging for readability:
+- [x] Create `src/utils/readability.ts`
+- [x] Implement `isProbablyReaderable()` pre-check
+- [x] Parse with `new Readability(document).parse()`
+- [x] Extract: `title`, `content`, `byline`, `siteName`, `excerpt`
+- [x] Add logging for readability:
   - `parse:precheck` — isProbablyReaderable result
   - `parse:start` — parsing initiated
   - `parse:success` — extracted fields summary (title, content length, has byline)
   - `parse:error` — parsing failure details
 
 ### 2.2 Turndown Conversion
-- [ ] Create `src/utils/markdown.ts`
-- [ ] Configure TurndownService with sensible defaults:
+- [x] Create `src/utils/markdown.ts`
+- [x] Configure TurndownService with sensible defaults:
   ```typescript
   const turndown = new TurndownService({
     headingStyle: 'atx',
@@ -82,14 +82,14 @@
   });
   turndown.use(gfm); // tables, strikethrough, task lists
   ```
-- [ ] Add custom rules if needed (e.g., strip remaining ads/tracking elements)
-- [ ] Add logging for markdown conversion:
+- [x] Add custom rules if needed (e.g., strip remaining ads/tracking elements)
+- [x] Add logging for markdown conversion:
   - `parse:markdown:start` — conversion initiated
   - `parse:markdown:success` — output length, heading count
   - `parse:markdown:error` — conversion failure
 
 ### 2.3 Detail View Rendering
-- [ ] Compose Markdown output:
+- [x] Compose Markdown output:
   ```markdown
   # {title}
   
@@ -99,7 +99,7 @@
   
   {content}
   ```
-- [ ] Render in `<Detail markdown={...} />`
+- [x] Render in `<Detail markdown={...} />`
 
 **Milestone:** Clean article content displays in Raycast.
 

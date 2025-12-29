@@ -164,3 +164,9 @@ When implementing this extension:
 3. **Logging:** Integrate `@chrismessina/raycast-logger` per standard pattern (see logging guide if available in docs/).
 4. **Iterate with me:** If spec is ambiguous, propose options rather than guessing.
 5. **Prototype mindset:** Prioritize working code over polish. We'll refine together.
+
+## Test Links
+
+1. [OpenAI CEO Sam Altman Just Publicly Admitted That AI Agents Are Becoming a Problem](https://timesofindia.indiatimes.com/technology/tech-news/openai-ceo-sam-altman-just-publicly-admitted-that-ai-agents-are-becoming-a-problem-says-ai-models-are-beginning-to-find-/articleshow/126215397.cms#origin=https%3A%2F%2Fwww.google.com%2F&cap=swipe,education&webview=1&dialog=1&viewport=natural&visibilityState=prerender&prerenderSize=1&viewerUrl=https%3A%2F%2Fwww.google.com%2Famp%2Fs%2Ftimesofindia-indiatimes-com.cdn.ampproject.org%2Fc%2Fs%2Ftimesofindia.indiatimes.com%2Ftechnology%2Ftech-news%2Fopenai-ceo-sam-altman-just-publicly-admitted-that-ai-agents-are-becoming-a-problem-says-ai-models-are-beginning-to-find-%2Farticleshow%2F126215397.cms%3Fusqp=mq331AQIUAKwASCAAgM%25253D&amp_kit=1)
+2. [The No Network Effect](https://snarfed.org/2013-04-13_the-no-network-effect)
+3. [AI agents are becoming a problem, Sam Altman says](https://www.theverge.com/2025/10/15/24927849/ai-agents-are-becoming-a-problem-sam-altman-openai-ceo-interview)
