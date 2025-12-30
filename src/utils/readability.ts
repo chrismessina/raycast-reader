@@ -1,6 +1,7 @@
 import { Readability, isProbablyReaderable } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { parseLog } from "./logger";
+import { preCleanHtml } from "./html-cleaner";
 
 export interface ArticleContent {
   title: string;
@@ -65,7 +66,11 @@ export function parseArticle(
     // This is necessary because linkedom doesn't fully support base element URL resolution
     const absoluteHtml = makeUrlsAbsolute(html, url);
 
-    const { document } = parseHTML(absoluteHtml);
+    // Pre-clean HTML to remove sidebars, ads, comments, subscription boxes, etc.
+    // Based on Safari Reader Mode and Reader View patterns
+    const cleaningResult = preCleanHtml(absoluteHtml, url);
+
+    const { document } = parseHTML(cleaningResult.html);
 
     // Pre-check if content is likely readable
     if (!options.skipPreCheck) {

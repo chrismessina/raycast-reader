@@ -30,7 +30,30 @@ turndown.addRule("bracketedEmphasis", {
 });
 
 // Remove unwanted elements that may slip through Readability
-turndown.remove(["script", "style", "noscript", "iframe", "form", "button", "input", "select", "textarea"]);
+// Based on Safari Reader Mode and Reader View patterns
+turndown.remove([
+  "script",
+  "style",
+  "noscript",
+  "iframe",
+  "form",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "aside",
+  "nav",
+]);
+
+// Custom rule to filter elements by role attribute
+turndown.addRule("removeByRole", {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter: (node: any) => {
+    const role = node.getAttribute?.("role");
+    return role === "complementary" || role === "navigation";
+  },
+  replacement: () => "",
+});
 
 /**
  * Converts HTML content to Markdown

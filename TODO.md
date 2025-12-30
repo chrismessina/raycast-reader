@@ -219,7 +219,60 @@
 
 ---
 
-## Phase 5: Future Enhancements (v2+)
+## Phase 5: Content Extraction Improvements
+
+> Based on analysis of Safari Reader Mode and Reader View implementations.
+
+### 5.1 Pre-Cleaning HTML (Priority 1)
+- [x] Create `src/utils/html-cleaner.ts` with `preCleanHtml()` function
+- [x] Implement negative regex patterns to remove:
+  - Sidebars (`[class*="sidebar"]`, `[id*="sidebar"]`)
+  - Comments (`[class*="comment"]`, `[id*="comment"]`)
+  - Subscription boxes (`[class*="subscribe"]`, `[class*="newsletter"]`)
+  - Advertisements (`[class*="advertisement"]`, `[class*="ad-"]`)
+  - Social/sharing widgets (`[class*="social"]`, `[class*="share"]`)
+  - Related content (`[class*="related"]`, `[class*="promo"]`)
+  - Navigation (`nav`, `[role="navigation"]`)
+  - Complementary content (`[role="complementary"]`)
+- [x] Integrate pre-cleaning into `readability.ts` before Readability runs
+
+### 5.2 Turndown Element Removal (Priority 2)
+- [x] Add `aside` to Turndown removal list
+- [x] Add `nav` to Turndown removal list
+- [x] Add `[role="complementary"]` handling
+- [x] Add `[role="navigation"]` handling
+
+### 5.3 Lazy-Loaded Image Resolution (Priority 3)
+- [x] Add `resolveLazyImages()` function to resolve common lazy-load attributes:
+  - `data-src`, `data-lazy-src`, `data-original`, `datasrc`
+  - `data-srcset` for responsive images
+- [x] Integrate into HTML pre-processing pipeline
+
+### 5.4 Site-Specific Quirks (Priority 4)
+- [x] Create `src/utils/quirks.ts` with hostname-to-selector mappings
+- [x] Add quirks for common problematic sites:
+  - Wikipedia, Medium, Substack, etc.
+- [x] Integrate quirks lookup into content extraction
+- [ ] Review accuracy of quirks and adjust as needed
+
+### 5.5 Schema.org Detection (Priority 5)
+- [x] Detect `[itemprop="articleBody"]` elements
+- [x] Detect `[itemtype*="schema.org/Article"]` containers
+- [x] Prefer schema.org marked content when available
+
+### 5.6 Carousel Detection (Priority 6)
+- [x] Detect carousel patterns (`carousel`, `swiper`, `slider`)
+- [x] Remove or deprioritize carousel content
+
+### 5.7 Documentation
+- [x] Create `docs/content-extraction.md` documenting all techniques
+- [x] Reference Safari Reader and Reader View sources
+
+**Milestone:** Improved content extraction reliability with fewer ads, sidebars, and subscription boxes.
+
+---
+
+## Phase 6: Future Enhancements (v2+)
 
 > Out of scope for v1, but worth tracking:
 
