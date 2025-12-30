@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Detail,
   LaunchProps,
-  BrowserExtension,
   Clipboard,
   getSelectedText,
   ActionPanel,
@@ -20,6 +19,13 @@ import { urlLog } from "./utils/logger";
 import { fetchHtml } from "./utils/fetcher";
 import { parseArticle } from "./utils/readability";
 import { formatArticle } from "./utils/markdown";
+import {
+  isBrowserExtensionAvailable,
+  getContentFromActiveTab,
+  tryGetContentFromOpenTab,
+  getActiveTabUrl,
+  type BrowserTab,
+} from "./utils/browser-extension";
 import {
   SummaryStyle,
   getStyleLabel,
@@ -95,18 +101,13 @@ async function resolveUrl(argumentUrl?: string): Promise<{ url: string; source: 
   }
 
   // 4. Browser extension (active tab)
-  try {
-    urlLog.log("resolve:try", { source: "browser" });
-    const tabs = await BrowserExtension.getTabs();
-    const activeTab = tabs.find((tab) => tab.active);
-    if (activeTab && activeTab.url && isValidUrl(activeTab.url)) {
-      urlLog.log("resolve:success", { source: "browser", url: activeTab.url, tabId: activeTab.id });
-      return { url: activeTab.url, source: "browser" };
-    }
-    urlLog.log("resolve:skip", { source: "browser", reason: "no active tab with valid URL", tabCount: tabs.length });
-  } catch {
-    urlLog.log("resolve:skip", { source: "browser", reason: "extension not available" });
+  urlLog.log("resolve:try", { source: "browser" });
+  const activeTab = await getActiveTabUrl();
+  if (activeTab && isValidUrl(activeTab.url)) {
+    urlLog.log("resolve:success", { source: "browser", url: activeTab.url, tabId: activeTab.tabId });
+    return { url: activeTab.url, source: "browser" };
   }
+  urlLog.log("resolve:skip", { source: "browser", reason: "no active tab with valid URL or extension unavailable" });
 
   urlLog.warn("resolve:failed", { reason: "no valid URL found from any source" });
   return null;
@@ -142,6 +143,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
   const [hasBrowserExtension, setHasBrowserExtension] = useState(false);
   const [isWaitingForBrowser, setIsWaitingForBrowser] = useState(false);
+  const [foundTab, setFoundTab] = useState<BrowserTab | null>(null);
   const [summaryStyle, setSummaryStyle] = useState<SummaryStyle | null>(null);
   const [summaryPrompt, setSummaryPrompt] = useState<string>("");
   const [cachedSummary, setCachedSummaryState] = useState<string | null>(null);
@@ -255,18 +257,39 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       if (!fetchResult.success) {
         // Check if this is a blocked error (403) that could be resolved via browser extension
         if (fetchResult.error.type === "blocked" && fetchResult.error.statusCode === 403) {
-          // Check if browser extension is available
-          try {
-            await BrowserExtension.getTabs();
+          // First, try automatic fallback: check if URL is already open in a browser tab
+          const browserResult = await tryGetContentFromOpenTab(urlResult.url);
+
+          if (browserResult.status === "success") {
+            urlLog.log("fetch:auto-fallback-success", { url: urlResult.url });
+            setArticle(browserResult.article);
+            setIsLoading(false);
+            return;
+          }
+
+          if (browserResult.status === "fetch_failed") {
+            // Tab exists but we couldn't get content (likely inactive tab timeout)
+            urlLog.log("fetch:tab-found-but-failed", {
+              url: urlResult.url,
+              tabId: browserResult.tab.id,
+              tabTitle: browserResult.tab.title,
+              isActive: browserResult.tab.active,
+            });
+            setFoundTab(browserResult.tab);
             setHasBrowserExtension(true);
             setBlockedUrl(urlResult.url);
-            urlLog.log("fetch:blocked-with-extension", { url: urlResult.url });
-          } catch {
-            // No browser extension available
-            setHasBrowserExtension(false);
-            setBlockedUrl(urlResult.url);
-            urlLog.log("fetch:blocked-no-extension", { url: urlResult.url });
+            setError(fetchResult.error.message);
+            setIsLoading(false);
+            return;
           }
+
+          // Tab not found - show manual browser extension flow
+          const extensionAvailable = await isBrowserExtensionAvailable();
+          setHasBrowserExtension(extensionAvailable);
+          setBlockedUrl(urlResult.url);
+          urlLog.log(extensionAvailable ? "fetch:blocked-with-extension" : "fetch:blocked-no-extension", {
+            url: urlResult.url,
+          });
         }
         setError(fetchResult.error.message);
         setIsLoading(false);
@@ -320,55 +343,17 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
     setIsWaitingForBrowser(true);
     setError(null);
-    urlLog.log("browser-fallback:start", { url: blockedUrl });
 
-    try {
-      // Get the HTML content from the active tab via browser extension
-      const html = await BrowserExtension.getContent({ format: "html" });
+    const result = await getContentFromActiveTab(blockedUrl);
 
-      if (!html || html.trim().length === 0) {
-        setError("Could not get content from browser. Make sure the page is fully loaded.");
-        setIsWaitingForBrowser(false);
-        return;
-      }
-
-      urlLog.log("browser-fallback:content-received", { url: blockedUrl, htmlLength: html.length });
-
-      // Parse with Readability
-      const parseResult = parseArticle(html, blockedUrl);
-      if (!parseResult.success) {
-        setError(parseResult.error.message);
-        setIsWaitingForBrowser(false);
-        return;
-      }
-
-      // Convert to Markdown
-      const formatted = formatArticle(parseResult.article.title, parseResult.article.content);
-
-      urlLog.log("browser-fallback:success", {
-        url: blockedUrl,
-        title: formatted.title,
-        markdownLength: formatted.markdown.length,
-      });
-
-      const newArticle = {
-        bodyMarkdown: formatted.markdown,
-        title: parseResult.article.title,
-        byline: parseResult.article.byline,
-        siteName: parseResult.article.siteName,
-        url: blockedUrl,
-        source: "browser extension",
-        textContent: parseResult.article.textContent,
-      };
-
-      setArticle(newArticle);
+    if (result.success) {
+      setArticle(result.article);
       setBlockedUrl(null);
-      setIsWaitingForBrowser(false);
-    } catch (err) {
-      urlLog.error("browser-fallback:error", { url: blockedUrl, error: String(err) });
-      setError("Failed to get content from browser. Make sure the Raycast browser extension is installed and the page is open.");
-      setIsWaitingForBrowser(false);
+    } else {
+      setError(result.error);
     }
+
+    setIsWaitingForBrowser(false);
   }, [blockedUrl]);
 
   if (isLoading) {
@@ -377,8 +362,21 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
   // Special handling for blocked pages with browser extension fallback
   if (blockedUrl && error) {
-    const blockedMarkdown = hasBrowserExtension
-      ? `# Page Blocked
+    // Different message if we found the tab but couldn't fetch from it
+    const foundTabMarkdown = foundTab
+      ? `# Page Found in Browser
+
+This page is already open in your browser${foundTab.title ? ` ("${foundTab.title}")` : ""}, but we couldn't fetch its content automatically.
+
+**Press Enter** to switch to that tab, then press **⌘ + R** to fetch the content.
+
+*The browser extension needs the tab to be active to read its content.*`
+      : null;
+
+    const blockedMarkdown = foundTabMarkdown
+      ? foundTabMarkdown
+      : hasBrowserExtension
+        ? `# Page Blocked
 
 This website is preventing Raycast from downloading its content directly.
 
@@ -388,7 +386,7 @@ This website is preventing Raycast from downloading its content directly.
 3. Press **⌘ + R** to fetch the content via the Raycast browser extension
 
 *The Raycast browser extension will be used to get the page content.*`
-      : `# Page Blocked
+        : `# Page Blocked
 
 This website is preventing Raycast from downloading its content directly.
 
@@ -404,7 +402,11 @@ Once installed, you'll be able to open blocked pages in your browser and fetch t
           <ActionPanel>
             {hasBrowserExtension && (
               <>
-                <Action.OpenInBrowser title="Open in Browser" url={blockedUrl} icon={Icon.Globe} />
+                <Action.OpenInBrowser
+                  title={foundTab ? "Switch to Tab" : "Open in Browser"}
+                  url={blockedUrl}
+                  icon={foundTab ? Icon.ArrowRight : Icon.Globe}
+                />
                 <Action
                   title="Fetch Content from Browser"
                   icon={Icon.Download}
@@ -418,9 +420,14 @@ Once installed, you'll be able to open blocked pages in your browser and fetch t
                 title="Get Raycast Browser Extension"
                 url="https://www.raycast.com/browser-extension"
                 icon={Icon.Download}
+                shortcut={Keyboard.Shortcut.Common.Open}
               />
             )}
-            <Action.CopyToClipboard title="Copy URL" content={blockedUrl} shortcut={{ modifiers: ["cmd"], key: "c" }} />
+            <Action.CopyToClipboard
+              title="Copy URL"
+              content={blockedUrl}
+              shortcut={Keyboard.Shortcut.Common.Copy}
+            />
           </ActionPanel>
         }
       />
@@ -441,12 +448,12 @@ Once installed, you'll be able to open blocked pages in your browser and fetch t
     // 1. Title
     parts.push(`# ${article.title}`);
 
-    // 2. Metadata (byline · siteName)
+    // 2. Metadata (byline • siteName)
     const metaParts: string[] = [];
     if (article.byline) metaParts.push(article.byline);
     if (article.siteName) metaParts.push(article.siteName);
     if (metaParts.length > 0) {
-      parts.push("", `*${metaParts.join(" · ")}*`);
+      parts.push("", `*${metaParts.join(" • ")}*`);
     }
 
     // 3. Summary section (if applicable)
