@@ -53,6 +53,20 @@
   - `fetch:start` — request initiated with URL
   - `fetch:success` — response received with status, content length
   - `fetch:error` — failure with error type, status code
+- [ ] Add support for fetching content from browser extension
+- [ ] Add logging for browser extension fetch:
+  - `fetch:extension:start` — request initiated with URL
+  - `fetch:extension:success` — response received with status, content length
+  - `fetch:extension:error` — failure with error type, status code
+- [ ] Add fallback to get content from open tabs via `browserextension.gettabs`
+
+### 1.4 Paywall Handling
+- [ ] Add support for paywall detection and bypass
+- [ ] Add preference to toggle paywall bypass
+- [ ] Add logging for paywall detection:
+  - `paywall:detected` — paywall detected
+  - `paywall:bypassed` — paywall bypassed
+  - `paywall:error` — paywall bypass failed
 
 **Milestone:** Extension accepts URL and displays fetched content.
 
@@ -108,16 +122,16 @@
 ## Phase 3: AI Summarization
 
 ### 3.1 Raycast AI Integration
-- [ ] Research Raycast AI API for summarization
-- [ ] Create `src/utils/summarizer.ts`
-- [ ] Implement summary generation from article content
-- [ ] Add logging for AI summarization:
-  - `ai:start` — summarization initiated with style, content length
-  - `ai:success` — summary generated with length, style
-  - `ai:error` — AI failure with error details
+- [x] Research Raycast AI API for summarization
+- [x] Create `src/utils/summarizer.ts`
+- [x] Implement summary generation from article content
+- [x] Add logging for AI summarization:
+  - [x] `ai:start` — summarization initiated with style, content length
+  - [x] `ai:success` — summary generated with length, style
+  - [x] `ai:error` — AI failure with error details
 
 ### 3.2 Summary Styles
-- [ ] Implement summary style prompts:
+- [x] Implement summary style prompts:
   | Style | Prompt Pattern |
   |-------|----------------|
   | **Overview** | One-liner + 3 bullet points of key info |
@@ -128,7 +142,7 @@
   | **People, Places, & Things** | Key entities with brief context |
 
 ### 3.3 Summary Display
-- [ ] Add summary block at top of Detail view:
+- [x] Add summary block at top of Detail view:
   ```markdown
   # {title}
   
@@ -142,7 +156,12 @@
   
   {content}
   ```
-- [ ] Handle loading state while summary generates
+- [x] Handle loading state while summary generates
+- [x] Move summary to metadata sidebar panel
+- [x] Add preference to toggle summary sidebar visibility
+- [x] Add preference to set default summary style
+- [x] Add action to copy summary as Markdown
+- [ ] Add Translated Overview language preference
 
 **Milestone:** Articles display with AI-generated summaries.
 
@@ -165,6 +184,7 @@
   - **Copy Summary** — just the summary text
   - **Open in Browser** — open original URL
   - **Copy URL** — copy source URL to clipboard
+  - Add Action to get article from Browser (e.g. Import via Raycast Browser Extension)
 
 ### 4.3 Error Handling
 - [ ] Handle edge cases:
@@ -182,6 +202,18 @@
 - [ ] Show loading indicator while fetching
 - [ ] Show loading indicator while generating summary
 - [ ] Graceful degradation if summary fails (show content without summary)
+- [ ] Helpful message if precheck fails — offer to bypass
+
+### 4.5 Documentation
+- [ ] Update README with all features and usage examples
+- [ ] Add troubleshooting section
+- [ ] Document preferences and their effects
+
+### 4.6 Codebase Cleanup
+- [ ] Remove unused code and comments
+- [ ] Add JSDoc comments for public functions
+- [ ] Ensure all error handling is comprehensive
+- [ ] Review code organization and separation of concerns
 
 **Milestone:** Production-ready extension with full feature set.
 
@@ -191,13 +223,17 @@
 
 > Out of scope for v1, but worth tracking:
 
-- [ ] Caching strategy for recently viewed articles
+- [ ] Add fallback for paywalled content
+  - [ ] Use 12ft.io, archive.today, & removepaywall.com
+- [ ] Add preference to toggle image visibility
+- [ ] Caching strategy for recently viewed articles (align with SummaryCache)
+- [ ] Support custom summary styles
+- [ ] Keyboard shortcuts for summary style switching
 - [ ] Offline reading (save articles locally)
 - [ ] Reading list integration
-- [ ] Custom CSS/theming for Detail view
 - [ ] Export to other formats (PDF, EPUB)
 - [ ] Integration with read-later services (Pocket, Instapaper, Omnivore)
-- [ ] Keyboard shortcuts for summary style switching
+
 
 ---
 

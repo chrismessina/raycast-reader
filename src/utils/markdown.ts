@@ -80,31 +80,17 @@ export interface FormattedArticle {
 }
 
 /**
- * Formats article content into a complete Markdown document
+ * Formats article content into Markdown (body only, no title/metadata)
+ * Title and metadata are now handled in the component to avoid duplication
  */
-export function formatArticle(
-  title: string,
-  content: string,
-  byline: string | null,
-  siteName: string | null,
-): FormattedArticle {
+export function formatArticle(title: string, content: string): FormattedArticle {
   // Convert HTML content to Markdown
   const result = htmlToMarkdown(content);
   const contentMarkdown = result.success ? result.markdown : content;
 
-  // Build metadata line
-  const metaParts: string[] = [];
-  if (byline) metaParts.push(byline);
-  if (siteName) metaParts.push(siteName);
-  const metaLine = metaParts.length > 0 ? `*${metaParts.join(" · ")}*` : "";
-
-  // Compose final document
-  const parts = [`# ${title}`];
-  if (metaLine) parts.push("", metaLine);
-  parts.push("", "---", "", contentMarkdown);
-
+  // Return just the body content - title and metadata will be added by the component
   return {
-    markdown: parts.join("\n"),
+    markdown: contentMarkdown,
     title,
   };
 }

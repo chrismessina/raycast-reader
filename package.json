@@ -3,7 +3,7 @@
   "name": "reader-mode",
   "title": "Reader",
   "description": "Read the web distraction-free in Raycast.",
-  "icon": "extension-icon.png",
+  "icon": "reader-icon.png",
   "author": "chrismessina",
   "platforms": [
     "macOS",
@@ -33,6 +33,31 @@
     }
   ],
   "preferences": [
+    {
+      "name": "enableAISummary",
+      "title": "Automatically Generate Summaries",
+      "description": "Automatically summarize articles (requires Raycast AI).",
+      "type": "checkbox",
+      "label": "Enable",
+      "default": true,
+      "required": false
+    },
+    {
+      "name": "defaultSummaryStyle",
+      "title": "Summary Style",
+      "description": "The default style for summaries.",
+      "type": "dropdown",
+      "default": "overview",
+      "required": false,
+      "data": [
+        { "title": "Overview", "value": "overview" },
+        { "title": "Opposite Sides", "value": "opposite-sides" },
+        { "title": "The 5 Ws", "value": "five-ws" },
+        { "title": "Explain Like I'm 5", "value": "eli5" },
+        { "title": "Translated Overview", "value": "translated" },
+        { "title": "People, Places & Things", "value": "entities" }
+      ]
+    },
     {
       "name": "verboseLogging",
       "title": "Debug Logging",
