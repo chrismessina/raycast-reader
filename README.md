@@ -1,5 +1,17 @@
 # Reader Mode
 
+<div align="center">
+  <a href="https://github.com/chrismessina">
+    <img src="https://img.shields.io/github/followers/chrismessina?label=Follow%20chrismessina&style=social" alt="Follow @chrismessina">
+  </a>
+  <a href="https://github.com/chrismessina/raycast-reader/stargazers">
+    <img src="https://img.shields.io/github/stars/chrismessina/raycast-reader?style=social" alt="Stars">
+  </a>
+  <a href="https://www.raycast.com/chrismessina/reader-mode">
+    <img src="https://img.shields.io/badge/Raycast-Store-red.svg" alt="Reader Mode on Raycast store.">
+  </a>
+</div>
+
 Read the web distraction-free in Raycast.
 
 ## Features

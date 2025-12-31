@@ -297,7 +297,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       }
 
       // Step 3: Parse with Readability
-      const parseResult = parseArticle(fetchResult.data.html, fetchResult.data.url);
+      const parseResult = parseArticle(fetchResult.data.html, fetchResult.data.url, {
+        skipPreCheck: preferences.skipPreCheck,
+      });
       if (!parseResult.success) {
         setError(parseResult.error.message);
         setIsLoading(false);

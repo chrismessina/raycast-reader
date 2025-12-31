@@ -59,6 +59,15 @@
       ]
     },
     {
+      "name": "skipPreCheck",
+      "title": "Pre-check Readability",
+      "description": "Skip pages that are unlikely to have readable content.",
+      "type": "checkbox",
+      "label": "Enable",
+      "default": true,
+      "required": false
+    },
+    {
       "name": "verboseLogging",
       "title": "Debug Logging",
       "description": "Enable extra diagnostics for troubleshooting and bug reports.",
