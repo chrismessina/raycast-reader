@@ -97,3 +97,12 @@ Square brackets `[text]` that appear in article content (such as editorial inser
 Image alt text and title attributes are automatically stripped to ensure proper rendering in Raycast. Images are displayed as `![](url)` without descriptive text. This prevents rendering issues where long alt text or title attributes (especially those containing quotes) can break the markdown image syntax.
 
 Additionally, relative image URLs (e.g., `/image.jpg`) are automatically converted to absolute URLs using the page's base URL to ensure images load properly.
+
+## References
+
+- [Mozilla Readability](https://github.com/mozilla/readability)
+- [Defuddle](https://github.com/kepano/defuddle)
+- [Turndown](https://github.com/mixmark-io/turndown)
+- [Raycast API Docs](https://developers.raycast.com)
+- [Logger Integration Guide](./docs/logger-integration.md)
+- [Extension Spec](./docs/about.md)

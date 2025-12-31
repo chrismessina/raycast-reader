@@ -320,6 +320,7 @@
 ## References
 
 - [Mozilla Readability](https://github.com/mozilla/readability)
+- [Defuddle](https://github.com/kepano/defuddle)
 - [Turndown](https://github.com/mixmark-io/turndown)
 - [Raycast API Docs](https://developers.raycast.com)
 - [Logger Integration Guide](./docs/logger-integration.md)
