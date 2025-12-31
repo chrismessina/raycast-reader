@@ -41,8 +41,8 @@ const NEGATIVE_SELECTORS = [
   '[id*="advert"]',
   '[class*="sponsored"]',
   '[id*="sponsored"]',
-  '[data-ad]',
-  '[data-advertisement]',
+  "[data-ad]",
+  "[data-advertisement]",
 
   // Social/Sharing widgets
   '[class*="social"]',

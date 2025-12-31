@@ -14,6 +14,44 @@ export interface SiteQuirks {
 }
 
 /**
+ * Common selectors to remove across all sites.
+ * Based on EasyList and common ad/distraction patterns.
+ */
+export const COMMON_REMOVE_SELECTORS = [
+  // Outbrain and Taboola
+  "#taboola-below-article-thumbnails",
+  ".OUTBRAIN",
+  "[data-widget-id^='outbrain']",
+  ".taboola-container",
+
+  // Generic ads
+  "[id^='div-gpt-ad']",
+  ".ad-container",
+  ".sidebar-ad",
+  ".banner-ad",
+
+  // Social sharing
+  ".share-buttons",
+  ".social-share",
+  "[data-testid='share-button']",
+
+  // Comments (often loaded separately)
+  "#disqus_thread",
+  ".userComments",
+  ".comments-section",
+
+  // Video overlays
+  "#primis-holder",
+  ".aniview-inline-player",
+  ".amp-connatix-player",
+
+  // Newsletter signups
+  ".newsletter-signup",
+  ".newsletter-inline",
+  ".email-signup",
+];
+
+/**
  * Hostname patterns mapped to their quirks configuration.
  * Patterns are tested against the hostname using regex.
  */
@@ -98,13 +136,7 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     {
       name: "Guardian",
       articleSelector: '[itemprop="articleBody"]',
-      removeSelectors: [
-        ".submeta",
-        ".content-footer",
-        ".contributions__epic",
-        ".ad-slot",
-        ".js-most-popular-footer",
-      ],
+      removeSelectors: [".submeta", ".content-footer", ".contributions__epic", ".ad-slot", ".js-most-popular-footer"],
     },
   ],
 
@@ -168,8 +200,8 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     /^(.*\.)?techcrunch\.com$/i,
     {
       name: "TechCrunch",
-      articleSelector: ".article-content",
-      removeSelectors: [".embed-tc-newsletter", ".related-posts", ".ad-unit"],
+      articleSelector: ".entry-content",
+      removeSelectors: [".embed-tc-newsletter", ".related-posts", ".ad-unit", ".wp-block-techcrunch-inline-cta"],
     },
   ],
 
@@ -260,6 +292,126 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
       name: "BuzzFeed",
       articleSelector: "article #buzz_sub_buzz",
       removeSelectors: [".ad", ".newsletter-signup", ".share-buttons"],
+    },
+  ],
+
+  // The Intercept
+  [
+    /^(.*\.)?theintercept\.com$/i,
+    {
+      name: "TheIntercept",
+      articleSelector: ".PostContent",
+      removeSelectors: [".ad", ".newsletter-signup", ".share-tools"],
+    },
+  ],
+
+  // IETF (technical documents)
+  [
+    /^(.*\.)?ietf\.org$/i,
+    {
+      name: "IETF",
+      articleSelector: "div.content",
+      removeSelectors: [".nav", ".sidebar"],
+    },
+  ],
+
+  // Bloomberg
+  [
+    /^(.*\.)?bloomberg\.com$/i,
+    {
+      name: "Bloomberg",
+      articleSelector: "article",
+      removeSelectors: [".ad", '[data-component="paywall"]', ".newsletter-signup", ".sticky-ad", ".right-rail"],
+    },
+  ],
+
+  // Reuters
+  [
+    /^(.*\.)?reuters\.com$/i,
+    {
+      name: "Reuters",
+      articleSelector: '[data-testid="article-body"]',
+      removeSelectors: [".ad", '[data-testid="Slideshow"]', ".related-coverage", ".trust-principles"],
+    },
+  ],
+
+  // Forbes
+  [
+    /^(.*\.)?forbes\.com$/i,
+    {
+      name: "Forbes",
+      articleSelector: ".article-body",
+      removeSelectors: [".ad", ".forbes-subscribe", ".newsletter-tout", "#taboola-below-article-thumbnails", ".fs-ad"],
+    },
+  ],
+
+  // Atlantic
+  [
+    /^(.*\.)?theatlantic\.com$/i,
+    {
+      name: "TheAtlantic",
+      articleSelector: "article .article-body",
+      removeSelectors: [".ad", ".newsletter-inline-unit", ".related-articles", "#paywall-portal-root"],
+    },
+  ],
+
+  // Vice
+  [
+    /^(.*\.)?vice\.com$/i,
+    {
+      name: "Vice",
+      articleSelector: ".article__body",
+      removeSelectors: [".ad", ".newsletter-signup", ".related-articles", ".topics-strip"],
+    },
+  ],
+
+  // Vox
+  [
+    /^(.*\.)?vox\.com$/i,
+    {
+      name: "Vox",
+      articleSelector: ".c-entry-content",
+      removeSelectors: [".ad", ".m-newsletter-signup", ".c-article-footer", ".c-read-more"],
+    },
+  ],
+
+  // Polygon (same network as Vox)
+  [
+    /^(.*\.)?polygon\.com$/i,
+    {
+      name: "Polygon",
+      articleSelector: ".c-entry-content",
+      removeSelectors: [".ad", ".m-newsletter-signup", ".c-article-footer"],
+    },
+  ],
+
+  // CNN
+  [
+    /^(.*\.)?cnn\.com$/i,
+    {
+      name: "CNN",
+      articleSelector: ".article__content",
+      removeSelectors: [".ad", ".el__leafmedia--source-link", ".related-content", '[data-zone-label="modal"]'],
+    },
+  ],
+
+  // Axios
+  [
+    /^(.*\.)?axios\.com$/i,
+    {
+      name: "Axios",
+      articleSelector: ".article-content",
+      removeSelectors: [".ad", ".newsletter-signup", ".story-footer", ".stream-item-container"],
+    },
+  ],
+
+  // Quartz
+  [
+    /^(.*\.)?qz\.com$/i,
+    {
+      name: "Quartz",
+      articleSelector: "article .article-content",
+      removeSelectors: [".ad", ".paywall-gate", ".newsletter-signup", ".related-content"],
     },
   ],
 ];

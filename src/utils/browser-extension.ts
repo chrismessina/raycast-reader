@@ -10,35 +10,7 @@ import { BrowserExtension } from "@raycast/api";
 import { urlLog } from "./logger";
 import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
-
-export interface BrowserTab {
-  id: number;
-  url: string;
-  title?: string;
-  active: boolean;
-  favicon?: string;
-}
-
-export interface ParsedArticle {
-  bodyMarkdown: string;
-  title: string;
-  byline: string | null;
-  siteName: string | null;
-  url: string;
-  source: string;
-  textContent: string;
-}
-
-export type BrowserContentResult = { success: true; article: ParsedArticle } | { success: false; error: string };
-
-/**
- * Result from trying to get content from an open tab.
- * Includes tab info so the UI can offer to activate the tab if content fetch fails.
- */
-export type TabContentResult =
-  | { status: "success"; article: ParsedArticle }
-  | { status: "tab_not_found" }
-  | { status: "fetch_failed"; error: string; tab: BrowserTab };
+import { BrowserTab, BrowserContentResult, TabContentResult } from "../types/browser";
 
 // Cache the extension availability check to avoid repeated API calls
 let extensionAvailableCache: boolean | null = null;

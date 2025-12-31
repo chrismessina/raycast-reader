@@ -1,4 +1,4 @@
-import { SummaryStyle, TranslationOptions } from "../utils/summarizer";
+import { SummaryStyle, TranslationOptions } from "../types/summary";
 
 /**
  * Prompt configuration for each summary style

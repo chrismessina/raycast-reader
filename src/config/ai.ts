@@ -1,5 +1,5 @@
 import { AI } from "@raycast/api";
-import { SummaryStyle } from "../utils/summarizer";
+import { SummaryStyle } from "../types/summary";
 
 type Creativity = "none" | "low" | "medium" | "high" | "maximum";
 
