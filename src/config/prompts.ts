@@ -37,7 +37,7 @@ Format your response EXACTLY like this:
   },
 
   "opposite-sides": {
-    label: "Opposite Sides",
+    label: "Opposing Sides",
     buildPrompt: (context) => `${context}
 
 Analyze this article and present two contrasting viewpoints or perspectives that emerge from or relate to the content. If the article itself presents opposing views, summarize them. If not, identify the main argument and present a reasonable counterargument.
@@ -81,7 +81,7 @@ Format your response as a simple, friendly explanation in 2-3 short paragraphs.`
 Provide an overview summary of this article translated into ${lang} at a ${level} language level.
 
 Format your response EXACTLY like this:
-**Summary (${lang}):** [one-liner summary in ${lang}]
+** [one-liner summary in ${lang}]
 
 - [key point 1 in ${lang}]
 - [key point 2 in ${lang}]

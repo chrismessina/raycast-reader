@@ -89,7 +89,8 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       const estimatedTokens = Math.ceil(summaryData.length / 4);
       logSummarySuccess(summaryStyle, summaryData.length, durationMs, estimatedTokens);
 
-      setCachedSummary(article.url, summaryStyle, summaryData);
+      const language = summaryStyle === "translated" ? preferences.translationLanguage : undefined;
+      setCachedSummary(article.url, summaryStyle, summaryData, language);
       setCompletedSummary(summaryData);
 
       if (toastRef.current) {
@@ -98,7 +99,16 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         toastRef.current.message = `${getStyleLabel(summaryStyle)} (${(durationMs! / 1000).toFixed(1)}s)`;
       }
     }
-  }, [summaryData, summaryStyle, article, isSummarizing, completedSummary, cachedSummary, summaryStartTime]);
+  }, [
+    summaryData,
+    summaryStyle,
+    article,
+    isSummarizing,
+    completedSummary,
+    cachedSummary,
+    summaryStartTime,
+    preferences.translationLanguage,
+  ]);
 
   // Handle summarization with cache check
   const handleSummarize = useCallback(
@@ -108,16 +118,18 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       setSummaryStyle(style);
       setCachedSummaryState(null);
 
-      const cached = await getCachedSummary(article.url, style);
+      const language = style === "translated" ? preferences.translationLanguage : undefined;
+      const cached = await getCachedSummary(article.url, style, language);
       if (cached) {
         setCachedSummaryState(cached);
         return;
       }
 
-      const prompt = buildSummaryPrompt(article.title, article.textContent, style);
+      const translationOptions = language ? { language } : undefined;
+      const prompt = buildSummaryPrompt(article.title, article.textContent, style, translationOptions);
       setSummaryPrompt(prompt);
     },
-    [article],
+    [article, preferences.translationLanguage],
   );
 
   // Process article loading result

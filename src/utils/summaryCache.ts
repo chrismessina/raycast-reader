@@ -1,5 +1,5 @@
 import { LocalStorage } from "@raycast/api";
-import { SummaryStyle } from "./summarizer";
+import { SummaryStyle, SupportedLanguage } from "../types/summary";
 import { aiLog } from "./logger";
 
 /**
@@ -36,8 +36,12 @@ function hashUrl(url: string): string {
 
 /**
  * Build cache key for a URL + style combination
+ * For translated style, includes the language to cache per-language
  */
-function buildCacheKey(url: string, style: SummaryStyle): string {
+function buildCacheKey(url: string, style: SummaryStyle, language?: SupportedLanguage): string {
+  if (style === "translated" && language) {
+    return `${CACHE_PREFIX}${hashUrl(url)}:${style}:${language}`;
+  }
   return `${CACHE_PREFIX}${hashUrl(url)}:${style}`;
 }
 
@@ -50,9 +54,14 @@ function buildLastStyleKey(url: string): string {
 
 /**
  * Get cached summary for a URL + style combination
+ * For translated style, pass language to get the correct cached translation
  */
-export async function getCachedSummary(url: string, style: SummaryStyle): Promise<string | undefined> {
-  const key = buildCacheKey(url, style);
+export async function getCachedSummary(
+  url: string,
+  style: SummaryStyle,
+  language?: SupportedLanguage,
+): Promise<string | undefined> {
+  const key = buildCacheKey(url, style, language);
   try {
     const cached = await LocalStorage.getItem<string>(key);
     if (cached) {
@@ -70,9 +79,15 @@ export async function getCachedSummary(url: string, style: SummaryStyle): Promis
 
 /**
  * Store summary in cache
+ * For translated style, pass language to cache per-language
  */
-export async function setCachedSummary(url: string, style: SummaryStyle, summary: string): Promise<void> {
-  const key = buildCacheKey(url, style);
+export async function setCachedSummary(
+  url: string,
+  style: SummaryStyle,
+  summary: string,
+  language?: SupportedLanguage,
+): Promise<void> {
+  const key = buildCacheKey(url, style, language);
   const lastStyleKey = buildLastStyleKey(url);
 
   const entry: CachedSummary = {

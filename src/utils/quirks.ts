@@ -391,7 +391,14 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     {
       name: "CNN",
       articleSelector: ".article__content",
-      removeSelectors: [".ad", ".el__leafmedia--source-link", ".related-content", '[data-zone-label="modal"]'],
+      removeSelectors: [
+        ".ad",
+        ".el__leafmedia--source-link",
+        ".related-content",
+        '[data-zone-label="modal"]',
+        ".ad-feedback-link-container",
+        ".video-resource-elevate",
+      ],
     },
   ],
 

@@ -135,7 +135,7 @@
   | Style | Prompt Pattern |
   |-------|----------------|
   | **Overview** | One-liner + 3 bullet points of key info |
-  | **Opposite Sides** | Two contrasting viewpoints from the article |
+  | **Opposing Sides** | Two contrasting viewpoints from the article |
   | **The 5 Ws** | Who, What, Where, When, Why |
   | **Explain Like I'm 5** | Simplified language explanation |
   | **Translated Overview** | Overview in selected language + level |
@@ -170,7 +170,7 @@
 ## Phase 4: Polish & Actions
 
 ### 4.1 Preferences
-- [ ] Add all preferences to `package.json`:
+- [x] Add all preferences to `package.json`:
   | Preference | Type | Default | Description |
   |------------|------|---------|-------------|
   | `showSummary` | checkbox | `true` | Show AI summary at top |

@@ -51,11 +51,41 @@
       "required": false,
       "data": [
         { "title": "Overview", "value": "overview" },
-        { "title": "Opposite Sides", "value": "opposite-sides" },
+        { "title": "Opposing Sides", "value": "opposite-sides" },
         { "title": "The 5 Ws", "value": "five-ws" },
         { "title": "Explain Like I'm 5", "value": "eli5" },
         { "title": "Translated Overview", "value": "translated" },
         { "title": "People, Places & Things", "value": "entities" }
+      ]
+    },
+    {
+      "name": "translationLanguage",
+      "title": "Translation Overview Language",
+      "description": "Default language for translated summaries.",
+      "type": "dropdown",
+      "default": "es",
+      "required": false,
+      "data": [
+        { "title": "Spanish", "value": "es" },
+        { "title": "French", "value": "fr" },
+        { "title": "German", "value": "de" },
+        { "title": "Italian", "value": "it" },
+        { "title": "Portuguese", "value": "pt" },
+        { "title": "Japanese", "value": "ja" },
+        { "title": "Chinese (Simplified)", "value": "zh-CN" },
+        { "title": "Chinese (Traditional)", "value": "zh-TW" },
+        { "title": "Korean", "value": "ko" },
+        { "title": "Russian", "value": "ru" },
+        { "title": "Arabic", "value": "ar" },
+        { "title": "Hindi", "value": "hi" },
+        { "title": "Dutch", "value": "nl" },
+        { "title": "Polish", "value": "pl" },
+        { "title": "Swedish", "value": "sv" },
+        { "title": "Turkish", "value": "tr" },
+        { "title": "Vietnamese", "value": "vi" },
+        { "title": "Thai", "value": "th" },
+        { "title": "Greek", "value": "el" },
+        { "title": "Hebrew", "value": "he" }
       ]
     },
     {
