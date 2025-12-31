@@ -13,11 +13,15 @@ import { loadArticleFromUrl } from "./utils/article-loader";
 import { ArticleState } from "./types/article";
 import { UrlInputForm } from "./views/UrlInputForm";
 import { BlockedPageView } from "./views/BlockedPageView";
+import { NotReadableView } from "./views/NotReadableView";
+import { EmptyContentView } from "./views/EmptyContentView";
 import { ArticleDetailView } from "./views/ArticleDetailView";
 
 type ReaderArguments = {
   url: string;
 };
+
+const MINIMUM_ARTICLE_LENGTH = 100;
 
 export default function Command(props: LaunchProps<{ arguments: ReaderArguments }>) {
   const preferences = getPreferenceValues<Preferences.Open>();
@@ -34,6 +38,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   const [hasBrowserExtension, setHasBrowserExtension] = useState(false);
   const [isWaitingForBrowser, setIsWaitingForBrowser] = useState(false);
   const [foundTab, setFoundTab] = useState<BrowserTab | null>(null);
+
+  // Not-readable page state
+  const [notReadableUrl, setNotReadableUrl] = useState<string | null>(null);
 
   // URL form state
   const [showUrlForm, setShowUrlForm] = useState(false);
@@ -137,11 +144,15 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     if (result.status === "success") {
       setArticle(result.article);
       setBlockedUrl(null);
+      setNotReadableUrl(null);
       setError(null);
     } else if (result.status === "blocked") {
       setBlockedUrl(result.url);
       setHasBrowserExtension(result.hasBrowserExtension);
       setFoundTab(result.foundTab);
+      setError(result.error);
+    } else if (result.status === "not-readable") {
+      setNotReadableUrl(result.url);
       setError(result.error);
     } else {
       setError(result.error);
@@ -178,10 +189,14 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   }, [props.arguments.url, preferences.skipPreCheck, handleLoadResult]);
 
   // Auto-trigger summary generation when article loads (if enabled)
+  // Don't generate summary for articles that bypassed readability check
   useEffect(() => {
-    if (article && shouldShowSummary && !summaryInitialized) {
+    if (article && shouldShowSummary && !summaryInitialized && !article.bypassedReadabilityCheck) {
       setSummaryInitialized(true);
       handleSummarize(preferences.defaultSummaryStyle);
+      urlLog.log("summary:auto-triggered", { url: article.url });
+    } else if (article && article.bypassedReadabilityCheck) {
+      urlLog.log("summary:skipped-bypassed-check", { url: article.url });
     }
   }, [article, shouldShowSummary, summaryInitialized, handleSummarize, preferences.defaultSummaryStyle]);
 
@@ -203,6 +218,22 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
     setIsWaitingForBrowser(false);
   }, [blockedUrl]);
+
+  // Handler to retry loading without readability check
+  const handleRetryWithoutCheck = useCallback(async () => {
+    if (!notReadableUrl) return;
+
+    setIsLoading(true);
+    setNotReadableUrl(null);
+    setError(null);
+
+    urlLog.log("session:retry-without-check", { url: notReadableUrl });
+
+    const result = await loadArticleFromUrl(notReadableUrl, "retry", {
+      skipPreCheck: true,
+    });
+    handleLoadResult(result);
+  }, [notReadableUrl, handleLoadResult]);
 
   // Handler for URL form submission
   const handleUrlSubmit = useCallback(
@@ -245,6 +276,10 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     );
   }
 
+  if (notReadableUrl && error) {
+    return <NotReadableView url={notReadableUrl} error={error} onRetryWithoutCheck={handleRetryWithoutCheck} />;
+  }
+
   if (blockedUrl && error) {
     return (
       <BlockedPageView
@@ -259,6 +294,17 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
   if (error || !article) {
     return <Detail markdown={`# Error\n\n${error || "Unable to load article"}`} />;
+  }
+
+  // Check if article has minimal or no content
+  const hasMinimalContent = article.bodyMarkdown.trim().length < MINIMUM_ARTICLE_LENGTH;
+  if (hasMinimalContent) {
+    urlLog.warn("article:empty-content", {
+      url: article.url,
+      markdownLength: article.bodyMarkdown.length,
+      bypassedCheck: article.bypassedReadabilityCheck,
+    });
+    return <EmptyContentView url={article.url} title={article.title} />;
   }
 
   const currentSummary = cachedSummary || summaryData;

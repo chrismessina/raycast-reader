@@ -9,6 +9,7 @@ import { ArticleState } from "../types/article";
 export type LoadArticleResult =
   | { status: "success"; article: ArticleState }
   | { status: "blocked"; url: string; hasBrowserExtension: boolean; foundTab: BrowserTab | null; error: string }
+  | { status: "not-readable"; url: string; error: string }
   | { status: "error"; error: string };
 
 interface LoadArticleOptions {
@@ -72,20 +73,29 @@ export async function loadArticleFromUrl(
   }
 
   // Step 2: Parse with Readability
+  urlLog.log("parse:start", { url, skipPreCheck: options.skipPreCheck });
   const parseResult = parseArticle(fetchResult.data.html, fetchResult.data.url, {
     skipPreCheck: options.skipPreCheck,
   });
   if (!parseResult.success) {
+    urlLog.error("parse:failed", { url, errorType: parseResult.error.type, message: parseResult.error.message });
+    if (parseResult.error.type === "not-readable") {
+      return { status: "not-readable", url, error: parseResult.error.message };
+    }
     return { status: "error", error: parseResult.error.message };
   }
+  urlLog.log("parse:success", { url, contentLength: parseResult.article.content.length });
 
   // Step 3: Convert to Markdown
+  urlLog.log("markdown:start", { url });
   const formatted = formatArticle(parseResult.article.title, parseResult.article.content);
+  urlLog.log("markdown:complete", { url, markdownLength: formatted.markdown.length });
 
   urlLog.log("session:ready", {
     url,
     title: formatted.title,
     markdownLength: formatted.markdown.length,
+    bypassedCheck: options.skipPreCheck,
   });
 
   const article: ArticleState = {
@@ -96,6 +106,7 @@ export async function loadArticleFromUrl(
     url,
     source,
     textContent: parseResult.article.textContent,
+    bypassedReadabilityCheck: options.skipPreCheck,
   };
 
   return { status: "success", article };

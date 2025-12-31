@@ -98,6 +98,24 @@ const NEGATIVE_SELECTORS = [
   '[class*="popup"]',
   '[class*="modal"]',
   '[class*="overlay"]',
+
+  // Cookie banners and consent
+  '[class*="cookie"]',
+  '[id*="cookie"]',
+  '[class*="consent"]',
+  '[id*="consent"]',
+  '[class*="gdpr"]',
+  '[id*="gdpr"]',
+  '[class*="privacy-banner"]',
+  '[id*="privacy-banner"]',
+
+  // Skip links and print-only elements
+  '[class*="skip-link"]',
+  '[class*="print-only"]',
+  ".sr-only",
+
+  // Hidden elements
+  '[aria-hidden="true"]',
 ];
 
 /**
@@ -134,10 +152,46 @@ const LAZY_LOAD_ATTRIBUTES = [
   "data-native-src",
 ];
 
+/**
+ * Link density threshold for identifying navigation-heavy elements.
+ * Elements with link density > threshold are likely navigation, not content.
+ * Mozilla Readability uses ~0.25-0.33.
+ */
+const LINK_DENSITY_THRESHOLD = 0.25;
+
+/**
+ * Minimum text length for link density analysis.
+ * Very short elements aren't worth analyzing.
+ */
+const MIN_TEXT_LENGTH_FOR_DENSITY = 50;
+
+/**
+ * Calculates the link density of an element.
+ * Link density = (text length in links) / (total text length)
+ * Excludes hash-only anchors (internal page links).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getLinkDensity(element: any): number {
+  const textLength = (element.textContent || "").length;
+  if (textLength === 0) return 0;
+
+  let linkLength = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  element.querySelectorAll("a").forEach((link: any) => {
+    const href = link.getAttribute("href") || "";
+    // Don't count hash-only links (internal anchors)
+    if (href.startsWith("#")) return;
+    linkLength += (link.textContent || "").length;
+  });
+
+  return linkLength / textLength;
+}
+
 export interface CleaningResult {
   html: string;
   removedCount: number;
   lazyImagesResolved: number;
+  linkDenseRemoved: number;
   schemaArticleFound: boolean;
   quirksApplied: string | null;
 }
@@ -150,6 +204,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
   const { document } = parseHTML(html);
   let removedCount = 0;
   let lazyImagesResolved = 0;
+  let linkDenseRemoved = 0;
   let schemaArticleFound = false;
   let quirksApplied: string | null = null;
 
@@ -230,6 +285,63 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     }
   });
 
+  // Remove link-dense elements (likely navigation, not content)
+  // Target div/section/aside elements that are mostly links
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  document.querySelectorAll("div, section, aside, ul").forEach((el: any) => {
+    // Skip protected elements
+    if (protectedElements.has(el)) return;
+
+    // Check if any ancestor is protected
+    let parent = el.parentElement;
+    let isProtected = false;
+    while (parent) {
+      if (protectedElements.has(parent)) {
+        isProtected = true;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+    if (isProtected) return;
+
+    const textLength = (el.textContent || "").length;
+    if (textLength < MIN_TEXT_LENGTH_FOR_DENSITY) return;
+
+    const linkDensity = getLinkDensity(el);
+
+    // Remove elements that are severely link-dense (>50% links)
+    // These are almost certainly navigation, not content
+    if (linkDensity > 0.5) {
+      el.remove();
+      linkDenseRemoved++;
+      return;
+    }
+
+    // For elements above threshold but not severe, only remove if they
+    // look like navigation (lists with many links, menus, etc.)
+    if (linkDensity > LINK_DENSITY_THRESHOLD) {
+      const tagName = el.tagName?.toLowerCase();
+      const className = (el.className || "").toLowerCase();
+      const id = (el.id || "").toLowerCase();
+
+      // Check for navigation-like patterns
+      const isLikelyNav =
+        tagName === "ul" ||
+        tagName === "aside" ||
+        className.includes("menu") ||
+        className.includes("nav") ||
+        className.includes("links") ||
+        id.includes("menu") ||
+        id.includes("nav") ||
+        id.includes("links");
+
+      if (isLikelyNav) {
+        el.remove();
+        linkDenseRemoved++;
+      }
+    }
+  });
+
   // Resolve lazy-loaded images
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   document.querySelectorAll("img").forEach((img: any) => {
@@ -261,6 +373,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     url,
     removedCount,
     lazyImagesResolved,
+    linkDenseRemoved,
     schemaArticleFound,
     quirksApplied,
   });
@@ -269,6 +382,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     html: document.toString(),
     removedCount,
     lazyImagesResolved,
+    linkDenseRemoved,
     schemaArticleFound,
     quirksApplied,
   };

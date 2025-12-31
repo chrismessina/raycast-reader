@@ -90,10 +90,10 @@
     },
     {
       "name": "skipPreCheck",
-      "title": "Pre-check Readability",
-      "description": "Skip pages that are unlikely to have readable content.",
+      "title": "Check for Readability",
+      "description": "Skipping always shows reader mode, even if there's no readable content.",
       "type": "checkbox",
-      "label": "Enable",
+      "label": "Skip",
       "default": true,
       "required": false
     },

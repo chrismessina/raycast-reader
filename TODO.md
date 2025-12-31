@@ -179,7 +179,7 @@
   | `verboseLogging` | checkbox | `false` | Enable debug logging |
 
 ### 4.2 Actions
-- [ ] Implement action panel:
+- [x] Implement action panel:
   - **Copy as Markdown** (primary) — full article as Markdown
   - **Copy Summary** — just the summary text
   - **Open in Browser** — open original URL
@@ -200,9 +200,9 @@
 
 ### 4.4 Loading States
 - [ ] Show loading indicator while fetching
-- [ ] Show loading indicator while generating summary
-- [ ] Graceful degradation if summary fails (show content without summary)
-- [ ] Helpful message if precheck fails — offer to bypass
+- [x] Show loading indicator while generating summary
+- [x] Graceful degradation if summary fails (show content without summary)
+- [x] Helpful message if precheck fails — offer to bypass
 
 ### 4.5 Documentation
 - [ ] Update README with all features and usage examples

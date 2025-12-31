@@ -421,6 +421,66 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
       removeSelectors: [".ad", ".paywall-gate", ".newsletter-signup", ".related-content"],
     },
   ],
+
+  // Ghost (self-hosted and ghost.io)
+  [
+    /^(.*\.)?ghost\.(io|org)$/i,
+    {
+      name: "Ghost",
+      articleSelector: ".gh-content, .post-content",
+      removeSelectors: [".gh-sidebar", ".gh-subscribe", ".gh-navigation", ".gh-footer"],
+    },
+  ],
+
+  // Squarespace
+  [
+    /squarespace\.com$/i,
+    {
+      name: "Squarespace",
+      articleSelector: ".blog-item-content, .entry-content",
+      removeSelectors: [".sqs-block-newsletter", ".sqs-block-social-accounts", ".sqs-block-archive"],
+    },
+  ],
+
+  // Drupal (common patterns)
+  [
+    /drupal\.(org|com)$/i,
+    {
+      name: "Drupal",
+      articleSelector: ".field--name-body, .node__content",
+      removeSelectors: [".field--name-field-tags", ".links", ".comment-wrapper"],
+    },
+  ],
+
+  // WordPress.com (hosted blogs)
+  [
+    /^(.*\.)?wordpress\.com$/i,
+    {
+      name: "WordPress.com",
+      articleSelector: ".entry-content, .post-content",
+      removeSelectors: [".sharedaddy", ".jp-relatedposts", ".wpl-likebox", ".post-likes-widget"],
+    },
+  ],
+
+  // Blogger/Blogspot
+  [
+    /^(.*\.)?blogspot\.com$/i,
+    {
+      name: "Blogger",
+      articleSelector: ".post-body, .entry-content",
+      removeSelectors: [".blog-pager", ".post-share-buttons", ".reactions", ".post-footer"],
+    },
+  ],
+
+  // Tumblr
+  [
+    /^(.*\.)?tumblr\.com$/i,
+    {
+      name: "Tumblr",
+      articleSelector: ".post-content, .body-text",
+      removeSelectors: [".post-notes", ".reblog-header", ".post-controls", ".like-button"],
+    },
+  ],
 ];
 
 /**

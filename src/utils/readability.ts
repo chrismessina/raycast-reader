@@ -83,7 +83,7 @@ export function parseArticle(
           success: false,
           error: {
             type: "not-readable",
-            message: "This page doesn't appear to have article content",
+            message: "This page doesn't appear to contain readable article content. It may be a homepage, search results, or a page with mostly navigation elements.",
           },
         };
       }

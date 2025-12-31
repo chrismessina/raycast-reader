@@ -6,4 +6,5 @@ export interface ArticleState {
   url: string;
   source: string;
   textContent: string;
+  bypassedReadabilityCheck?: boolean;
 }
