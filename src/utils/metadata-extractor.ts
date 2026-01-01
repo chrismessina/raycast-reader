@@ -19,6 +19,8 @@ export interface ExtractedMetadata {
   favicon: string | null;
   url: string | null;
   domain: string | null;
+  /** Raw Schema.org data for use by extractors */
+  schemaOrgData: Record<string, unknown> | null;
 }
 
 interface MetaTagItem {
@@ -79,6 +81,7 @@ export class MetadataExtractor {
       favicon: this.getFavicon(doc, baseUrl),
       url,
       domain,
+      schemaOrgData,
     };
 
     parseLog.log("metadata:extracted", {

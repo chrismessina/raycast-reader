@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 import { parseLog } from "./logger";
-import { getQuirksForHostname } from "./quirks";
+import { getSiteConfig } from "./site-config";
 
 /**
  * Selectors for elements that should be removed before Readability processing.
@@ -274,7 +274,7 @@ export interface CleaningResult {
   lazyImagesResolved: number;
   linkDenseRemoved: number;
   schemaArticleFound: boolean;
-  quirksApplied: string | null;
+  siteConfigApplied: string | null;
 }
 
 /**
@@ -287,7 +287,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
   let lazyImagesResolved = 0;
   let linkDenseRemoved = 0;
   let schemaArticleFound = false;
-  let quirksApplied: string | null = null;
+  let siteConfigApplied: string | null = null;
 
   // Check for Schema.org article containers
   const schemaArticle = document.querySelector(
@@ -298,17 +298,17 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     parseLog.log("clean:schema-detected", { url });
   }
 
-  // Apply site-specific quirks
+  // Apply site-specific configuration
   try {
     const hostname = new URL(url).hostname;
-    const quirks = getQuirksForHostname(hostname);
-    if (quirks) {
-      quirksApplied = quirks.name;
-      parseLog.log("clean:quirks-applied", { url, quirks: quirks.name });
+    const config = getSiteConfig(hostname);
+    if (config) {
+      siteConfigApplied = config.name;
+      parseLog.log("clean:site-config-applied", { url, siteName: config.name });
 
-      // Remove elements specified by quirks
-      if (quirks.removeSelectors) {
-        quirks.removeSelectors.forEach((selector: string) => {
+      // Remove elements specified by site config
+      if (config.removeSelectors) {
+        config.removeSelectors.forEach((selector: string) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           document.querySelectorAll(selector).forEach((el: any) => {
             el.remove();
@@ -318,7 +318,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
       }
     }
   } catch {
-    // Invalid URL, skip quirks
+    // Invalid URL, skip site config
   }
 
   // Build a set of protected elements
@@ -456,7 +456,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     lazyImagesResolved,
     linkDenseRemoved,
     schemaArticleFound,
-    quirksApplied,
+    siteConfigApplied,
   });
 
   return {
@@ -465,6 +465,6 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
     lazyImagesResolved,
     linkDenseRemoved,
     schemaArticleFound,
-    quirksApplied,
+    siteConfigApplied,
   };
 }

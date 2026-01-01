@@ -21,7 +21,64 @@ Read the web distraction-free in Raycast.
 - **Browser Extension Fallback** - Access blocked pages via the Raycast browser extension
 - **Smart URL Detection** - Automatically detects URLs from arguments, clipboard, selection, or active browser tab
 
-## Configuration
+
+## Architecture
+
+### Content Extraction
+
+Reader Mode uses a multi-layered approach to extract clean article content:
+
+1. **Site-Specific Extractors** (`src/extractors/`) - Custom extraction logic for complex sites
+2. **Site Configuration** (`src/utils/site-config.ts`) - Selector-based configuration for simpler sites
+3. **Mozilla Readability** - Fallback for all other sites
+
+#### Extractors vs Site Config
+
+| Approach | Use Case | Examples |
+|----------|----------|----------|
+| **Extractors** | Sites needing custom DOM traversal and content transformation | Hacker News, GitHub, Reddit |
+| **Site Config** | Sites needing only CSS selector adjustments | Medium, Substack, news sites |
+| **Readability** | Standard article pages | Most blogs and news articles |
+
+### Adding Support for New Sites
+
+**For simple sites** (just need different selectors), add to `src/utils/site-config.ts`:
+
+```typescript
+[
+  /^example\.com$/i,
+  {
+    name: "Example",
+    articleSelector: ".article-body",
+    removeSelectors: [".ads", ".sidebar"],
+  },
+],
+```
+
+**For complex sites** (need custom extraction logic), create a new extractor:
+
+1. Create `src/extractors/mysite.ts` extending `BaseExtractor`
+2. Implement `canExtract()`, `extract()`, and `get siteName()`
+3. Register in `src/extractors/index.ts`
+
+```typescript
+export class MySiteExtractor extends BaseExtractor {
+  get siteName(): string {
+    return "My Site";
+  }
+
+  canExtract(): boolean {
+    return !!this.querySelector(".my-content");
+  }
+
+  extract(): ExtractorResult {
+    // Custom extraction logic
+    return { content, textContent, metadata };
+  }
+}
+```
+
+## Summary Configuration
 
 The extension uses a modular configuration system located in `src/config/`:
 
@@ -88,6 +145,24 @@ When you encounter a blocked page:
 
 **Note:** Requires the [Raycast browser extension](https://www.raycast.com/browser-extension) to be installed.
 
+
+### Inspiration: Defuddle
+
+This extension's content extraction architecture was inspired by [Defuddle](https://github.com/kepano/defuddle), a content extraction library by [@kepano](https://github.com/kepano). We initially attempted to use Defuddle directly, but found it wasn't well-suited for Raycast's environment:
+
+- **DOM Environment**: Defuddle expects a browser DOM, while Raycast extensions run in Node.js with `linkedom`
+- **Bundle Size**: Defuddle's full feature set added unnecessary weight for our use case
+- **Output Format**: We needed tighter integration with our metadata extraction and markdown conversion pipeline
+
+Instead, we adopted Defuddle's excellent patterns:
+
+- **Site-specific extractors** with a clean base class architecture
+- **Schema.org JSON-LD parsing** for rich metadata extraction
+- **Fallback chains** for metadata (Schema.org → Open Graph → Twitter Cards → meta tags)
+- **Comprehensive cleanup selectors** for removing ads, navigation, and other distractions
+
+This hybrid approach gives us the best of both worlds: Defuddle's battle-tested extraction patterns with tight Raycast integration.
+
 ## Known Issues
 
 ### Bracket Rendering
@@ -100,9 +175,9 @@ Additionally, relative image URLs (e.g., `/image.jpg`) are automatically convert
 
 ## References
 
-- [Mozilla Readability](https://github.com/mozilla/readability)
-- [Defuddle](https://github.com/kepano/defuddle)
-- [Turndown](https://github.com/mixmark-io/turndown)
+- [Mozilla Readability](https://github.com/mozilla/readability) - Core content extraction
+- [Defuddle](https://github.com/kepano/defuddle) - Inspiration for extractor architecture
+- [Turndown](https://github.com/mixmark-io/turndown) - HTML to Markdown conversion
 - [Raycast API Docs](https://developers.raycast.com)
 - [Logger Integration Guide](./docs/logger-integration.md)
 - [Extension Spec](./docs/about.md)

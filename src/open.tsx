@@ -304,7 +304,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       markdownLength: article.bodyMarkdown.length,
       bypassedCheck: article.bypassedReadabilityCheck,
     });
-    return <EmptyContentView url={article.url} title={article.title} />;
+    return <EmptyContentView url={article.url} />;
   }
 
   const currentSummary = cachedSummary || summaryData;

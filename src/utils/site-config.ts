@@ -1,15 +1,40 @@
 /**
- * Site-specific quirks for content extraction.
- * Based on Safari Reader Mode's quirks list approach.
+ * Site-specific configuration for content extraction.
+ * Based on Safari Reader Mode's site configuration approach.
  *
  * Some websites have non-standard HTML structures that require custom handling
  * to properly extract article content.
+ *
+ * NOTE: Complex sites like Hacker News, GitHub, and Reddit are handled by
+ * dedicated extractors in src/extractors/ which provide richer content extraction.
  */
 
-export interface SiteQuirks {
+export interface SiteConfig {
+  /** Display name for the site */
   name: string;
+  
+  /**
+   * CSS selector(s) to find the main article content.
+   * Can be a single selector or multiple comma-separated selectors.
+   * Examples:
+   * - Single: ".article-body"
+   * - Multiple: "article .content, .post-body, .entry-content"
+   */
   articleSelector?: string;
+  
+  /**
+   * Array of CSS selectors for elements to remove before extraction.
+   * Each selector is applied independently to find and remove matching elements.
+   * Examples:
+   * - [".ads", ".sidebar", "#comments"]
+   * - [".newsletter-signup", '[data-testid="share-button"]']
+   */
   removeSelectors?: string[];
+  
+  /**
+   * If true, prefer Schema.org metadata over other sources.
+   * Useful for sites with rich structured data.
+   */
   preferSchemaOrg?: boolean;
 }
 
@@ -52,10 +77,15 @@ export const COMMON_REMOVE_SELECTORS = [
 ];
 
 /**
- * Hostname patterns mapped to their quirks configuration.
+ * Hostname patterns mapped to their site configuration.
  * Patterns are tested against the hostname using regex.
+ *
+ * Configuration guide:
+ * - articleSelector: Single CSS selector or comma-separated selectors (e.g., ".content, article")
+ * - removeSelectors: Array of CSS selectors (e.g., [".ad", ".sidebar"])
+ * - preferSchemaOrg: Set to true if the site has reliable Schema.org JSON-LD data
  */
-const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
+const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
   // Wikipedia
   [
     /^(.*\.)?wikipedia\.org$/i,
@@ -205,65 +235,8 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     },
   ],
 
-  // Hacker News - handles both story pages and comment pages
-  [
-    /^news\.ycombinator\.com$/i,
-    {
-      name: "HackerNews",
-      articleSelector: ".fatitem",
-      removeSelectors: [
-        ".votearrow",
-        ".votelinks",
-        ".hnmore",
-        ".morelink",
-        "form[action='comment']",
-        ".reply",
-        "input",
-        "textarea",
-        ".navs",
-        ".pagetop",
-        "#hnmain > tbody > tr:first-child", // Header row
-        "#hnmain > tbody > tr:last-child", // Footer row
-      ],
-      preferSchemaOrg: false,
-    },
-  ],
-
-  // GitHub - handles READMEs, Issues, PRs, and discussions
-  [
-    /^(.*\.)?github\.com$/i,
-    {
-      name: "GitHub",
-      articleSelector: '[data-testid="issue-viewer-issue-container"], .markdown-body, .js-comment-body',
-      removeSelectors: [
-        ".octicon",
-        ".anchor",
-        ".zeroclipboard-container",
-        ".js-clipboard-copy",
-        "button",
-        '[data-testid*="button"]',
-        '[data-testid*="menu"]',
-        ".gh-header-sticky",
-        '[data-testid="issue-metadata-sticky"]',
-        ".timeline-comment-actions",
-        ".comment-reactions",
-        ".js-comment-edit-button",
-        ".details-overlay",
-        ".select-menu",
-        ".dropdown-menu",
-        ".tooltipped",
-        ".Label",
-        ".IssueLabel",
-        ".State",
-        "[data-view-component='true'][class*='Button']",
-        ".ActionListItem",
-        ".AppHeader",
-        ".js-header-wrapper",
-        ".footer",
-      ],
-      preferSchemaOrg: true,
-    },
-  ],
+  // NOTE: Hacker News, GitHub, Reddit, and YouTube are now handled by dedicated extractors
+  // in src/extractors/ - they provide richer content extraction than configs
 
   // Stack Overflow
   [
@@ -272,60 +245,6 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
       name: "StackOverflow",
       articleSelector: ".question, .answer",
       removeSelectors: [".js-vote-count", ".post-menu", ".comments", ".s-anchors"],
-    },
-  ],
-
-  // Reddit - handles both new and old Reddit
-  [
-    /^(.*\.)?reddit\.com$/i,
-    {
-      name: "Reddit",
-      articleSelector: '[data-test-id="post-content"], .expando, .usertext-body, [slot="text-body"]',
-      removeSelectors: [
-        '[data-testid="vote-arrows"]',
-        ".promotedlink",
-        '[data-testid="share-button"]',
-        ".share-button",
-        ".post-voting",
-        ".tagline",
-        ".buttons",
-        ".report-button",
-        ".crosspost-preview",
-        "[data-click-id='share']",
-        "[data-click-id='award']",
-        ".award-button",
-        "shreddit-post-overflow-menu",
-        "faceplate-dropdown-menu",
-      ],
-      preferSchemaOrg: true,
-    },
-  ],
-
-  // YouTube - extract video description and metadata
-  [
-    /^(.*\.)?(youtube\.com|youtu\.be)$/i,
-    {
-      name: "YouTube",
-      articleSelector: "#description, ytd-text-inline-expander, #content",
-      removeSelectors: [
-        "#chat",
-        "#comments",
-        "#related",
-        "#secondary",
-        "ytd-watch-next-secondary-results-renderer",
-        "ytd-comments",
-        "ytd-merch-shelf-renderer",
-        "#ticket-shelf",
-        "#clarify-box",
-        "#info-strings",
-        "#menu",
-        "#actions",
-        "#subscribe-button",
-        "ytd-subscribe-button-renderer",
-        ".ytp-ce-element",
-        ".ytp-cards-teaser",
-      ],
-      preferSchemaOrg: true,
     },
   ],
 
@@ -496,6 +415,29 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     },
   ],
 
+  // SFGate
+  [
+    /^(.*\.)?sfgate\.com$/i,
+    {
+      name: "SFGate",
+      articleSelector: "article .rel, .articleBody",
+      removeSelectors: [
+        ".deep",
+        ".pbs",
+        ".ttu",
+        '[data-block-type="ad"]',
+        ".hnpad-Inline",
+        '[class*="hnpad-"]',
+        ".uiTextSmall.f.aic.jcc",
+        ".uiHeader11.f.aic.jcc",
+        ".md\\:pt16.md\\:sy16.md\\:bb.md\\:bt.b-gray300.mb32",
+        "f.aic.fdc.pt24",
+        '[data-eid^="card-"]',
+      ],
+    },
+  ],
+
+
   // Quartz
   [
     /^(.*\.)?qz\.com$/i,
@@ -568,15 +510,15 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
 ];
 
 /**
- * Gets the quirks configuration for a given hostname.
- * Returns null if no quirks are defined for the hostname.
+ * Gets the site configuration for a given hostname.
+ * Returns null if no configuration is defined for the hostname.
  */
-export function getQuirksForHostname(hostname: string): SiteQuirks | null {
+export function getSiteConfig(hostname: string): SiteConfig | null {
   const normalizedHostname = hostname.toLowerCase().replace(/\.$/, "");
 
-  for (const [pattern, quirks] of QUIRKS_LIST) {
+  for (const [pattern, config] of SITE_CONFIG_LIST) {
     if (pattern.test(normalizedHostname)) {
-      return quirks;
+      return config;
     }
   }
 
@@ -587,6 +529,6 @@ export function getQuirksForHostname(hostname: string): SiteQuirks | null {
  * Gets the article selector for a hostname, if one is defined.
  */
 export function getArticleSelectorForHostname(hostname: string): string | null {
-  const quirks = getQuirksForHostname(hostname);
-  return quirks?.articleSelector ?? null;
+  const config = getSiteConfig(hostname);
+  return config?.articleSelector ?? null;
 }

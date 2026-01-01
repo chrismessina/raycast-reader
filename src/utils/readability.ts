@@ -3,6 +3,7 @@ import { parseHTML } from "linkedom";
 import { parseLog } from "./logger";
 import { preCleanHtml } from "./html-cleaner";
 import { MetadataExtractor } from "./metadata-extractor";
+import { getExtractor } from "../extractors";
 
 export interface ArticleContent {
   title: string;
@@ -83,6 +84,49 @@ export function parseArticle(
     // We use the original HTML to preserve metadata that might be removed during cleaning
     const { document: originalDoc } = parseHTML(absoluteHtml);
     const metadata = MetadataExtractor.extract(originalDoc, url);
+
+    // Check if we have a site-specific extractor for this URL
+    // Extractors provide custom content extraction for sites that don't work well with Readability
+    const extractor = getExtractor(originalDoc, url, metadata.schemaOrgData);
+    if (extractor) {
+      parseLog.log("parse:extractor", { url, extractor: extractor.siteName });
+
+      try {
+        const result = extractor.extract();
+
+        parseLog.log("parse:extractor:success", {
+          url,
+          extractor: extractor.siteName,
+          contentLength: result.content.length,
+          textLength: result.textContent.length,
+        });
+
+        return {
+          success: true,
+          article: {
+            title: result.metadata.title || metadata.title || "Untitled",
+            content: result.content,
+            textContent: result.textContent,
+            excerpt: result.metadata.description || metadata.description || "",
+            byline: result.metadata.author || null,
+            siteName: result.metadata.siteName || metadata.siteName || null,
+            length: result.textContent.length,
+            author: result.metadata.author || metadata.author || null,
+            published: result.metadata.published || metadata.published || null,
+            image: result.metadata.image || metadata.image || null,
+            description: result.metadata.description || metadata.description || null,
+            favicon: metadata.favicon || null,
+          },
+        };
+      } catch (extractorErr) {
+        // If extractor fails, fall back to Readability
+        parseLog.warn("parse:extractor:error", {
+          url,
+          extractor: extractor.siteName,
+          error: extractorErr instanceof Error ? extractorErr.message : "Unknown error",
+        });
+      }
+    }
 
     // Pre-check if content is likely readable
     if (!options.skipPreCheck) {

@@ -123,7 +123,9 @@ export async function getContentFromTab(url: string, tabId?: number): Promise<Br
     }
 
     // Convert to Markdown
-    const formatted = formatArticle(parseResult.article.title, parseResult.article.content);
+    const formatted = formatArticle(parseResult.article.title, parseResult.article.content, {
+      image: parseResult.article.image,
+    });
 
     return {
       success: true,

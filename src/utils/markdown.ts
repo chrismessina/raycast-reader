@@ -55,6 +55,20 @@ turndown.addRule("removeByRole", {
   replacement: () => "",
 });
 
+// Custom rule to italicize figcaption content (image captions)
+// Handles multiline captions by wrapping each line in italics
+turndown.addRule("figcaption", {
+  filter: "figcaption",
+  replacement: (content) => {
+    const trimmed = content.trim();
+    if (!trimmed) return "";
+    // Split by newlines and wrap each non-empty line in italics
+    const lines = trimmed.split(/\n+/).filter((line) => line.trim());
+    const italicized = lines.map((line) => `*${line.trim()}*`).join("\n\n");
+    return `\n\n${italicized}\n\n`;
+  },
+});
+
 /**
  * Converts HTML content to Markdown
  */
@@ -102,14 +116,24 @@ export interface FormattedArticle {
   title: string;
 }
 
+export interface FormatArticleOptions {
+  /** Image URL to prepend at the top of the article */
+  image?: string | null;
+}
+
 /**
  * Formats article content into Markdown (body only, no title/metadata)
  * Title and metadata are now handled in the component to avoid duplication
  */
-export function formatArticle(title: string, content: string): FormattedArticle {
+export function formatArticle(title: string, content: string, options?: FormatArticleOptions): FormattedArticle {
   // Convert HTML content to Markdown
   const result = htmlToMarkdown(content);
-  const contentMarkdown = result.success ? result.markdown : content;
+  let contentMarkdown = result.success ? result.markdown : content;
+
+  // Prepend article image if available from metadata (OG/Twitter Card)
+  if (options?.image) {
+    contentMarkdown = `![](${options.image})\n\n${contentMarkdown}`;
+  }
 
   // Return just the body content - title and metadata will be added by the component
   return {

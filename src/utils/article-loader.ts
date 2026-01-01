@@ -87,8 +87,10 @@ export async function loadArticleFromUrl(
   urlLog.log("parse:success", { url, contentLength: parseResult.article.content.length });
 
   // Step 3: Convert to Markdown
-  urlLog.log("markdown:start", { url });
-  const formatted = formatArticle(parseResult.article.title, parseResult.article.content);
+  urlLog.log("markdown:start", { url, hasImage: !!parseResult.article.image, imageUrl: parseResult.article.image });
+  const formatted = formatArticle(parseResult.article.title, parseResult.article.content, {
+    image: parseResult.article.image,
+  });
   urlLog.log("markdown:complete", { url, markdownLength: formatted.markdown.length });
 
   urlLog.log("session:ready", {
