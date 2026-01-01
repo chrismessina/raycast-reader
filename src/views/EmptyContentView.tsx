@@ -3,7 +3,6 @@ import { EmptyContentActions } from "../actions/EmptyContentActions";
 
 interface EmptyContentViewProps {
   url: string;
-  title: string;
 }
 
 function buildEmptyContentMarkdown(): string {
@@ -20,8 +19,10 @@ The page may be:
 You can try opening it in your browser instead.`;
 }
 
-export function EmptyContentView({ url, title }: EmptyContentViewProps) {
+export function EmptyContentView({ url }: EmptyContentViewProps) {
   const markdown = buildEmptyContentMarkdown();
 
-  return <Detail markdown={markdown} navigationTitle={"No Readable Content"} actions={<EmptyContentActions url={url} />} />;
+  return (
+    <Detail markdown={markdown} navigationTitle={"No Readable Content"} actions={<EmptyContentActions url={url} />} />
+  );
 }

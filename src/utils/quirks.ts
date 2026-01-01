@@ -205,23 +205,63 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     },
   ],
 
-  // Hacker News (for linked articles)
+  // Hacker News - handles both story pages and comment pages
   [
     /^news\.ycombinator\.com$/i,
     {
       name: "HackerNews",
       articleSelector: ".fatitem",
-      removeSelectors: [".votearrow", ".votelinks"],
+      removeSelectors: [
+        ".votearrow",
+        ".votelinks",
+        ".hnmore",
+        ".morelink",
+        "form[action='comment']",
+        ".reply",
+        "input",
+        "textarea",
+        ".navs",
+        ".pagetop",
+        "#hnmain > tbody > tr:first-child", // Header row
+        "#hnmain > tbody > tr:last-child", // Footer row
+      ],
+      preferSchemaOrg: false,
     },
   ],
 
-  // GitHub (for READMEs and discussions)
+  // GitHub - handles READMEs, Issues, PRs, and discussions
   [
     /^(.*\.)?github\.com$/i,
     {
       name: "GitHub",
-      articleSelector: ".markdown-body",
-      removeSelectors: [".octicon", ".anchor", ".zeroclipboard-container"],
+      articleSelector: '[data-testid="issue-viewer-issue-container"], .markdown-body, .js-comment-body',
+      removeSelectors: [
+        ".octicon",
+        ".anchor",
+        ".zeroclipboard-container",
+        ".js-clipboard-copy",
+        "button",
+        '[data-testid*="button"]',
+        '[data-testid*="menu"]',
+        ".gh-header-sticky",
+        '[data-testid="issue-metadata-sticky"]',
+        ".timeline-comment-actions",
+        ".comment-reactions",
+        ".js-comment-edit-button",
+        ".details-overlay",
+        ".select-menu",
+        ".dropdown-menu",
+        ".tooltipped",
+        ".Label",
+        ".IssueLabel",
+        ".State",
+        "[data-view-component='true'][class*='Button']",
+        ".ActionListItem",
+        ".AppHeader",
+        ".js-header-wrapper",
+        ".footer",
+      ],
+      preferSchemaOrg: true,
     },
   ],
 
@@ -235,13 +275,57 @@ const QUIRKS_LIST: Array<[RegExp, SiteQuirks]> = [
     },
   ],
 
-  // Reddit
+  // Reddit - handles both new and old Reddit
   [
     /^(.*\.)?reddit\.com$/i,
     {
       name: "Reddit",
-      articleSelector: '[data-test-id="post-content"]',
-      removeSelectors: ['[data-testid="vote-arrows"]', ".promotedlink", '[data-testid="share-button"]'],
+      articleSelector: '[data-test-id="post-content"], .expando, .usertext-body, [slot="text-body"]',
+      removeSelectors: [
+        '[data-testid="vote-arrows"]',
+        ".promotedlink",
+        '[data-testid="share-button"]',
+        ".share-button",
+        ".post-voting",
+        ".tagline",
+        ".buttons",
+        ".report-button",
+        ".crosspost-preview",
+        "[data-click-id='share']",
+        "[data-click-id='award']",
+        ".award-button",
+        "shreddit-post-overflow-menu",
+        "faceplate-dropdown-menu",
+      ],
+      preferSchemaOrg: true,
+    },
+  ],
+
+  // YouTube - extract video description and metadata
+  [
+    /^(.*\.)?(youtube\.com|youtu\.be)$/i,
+    {
+      name: "YouTube",
+      articleSelector: "#description, ytd-text-inline-expander, #content",
+      removeSelectors: [
+        "#chat",
+        "#comments",
+        "#related",
+        "#secondary",
+        "ytd-watch-next-secondary-results-renderer",
+        "ytd-comments",
+        "ytd-merch-shelf-renderer",
+        "#ticket-shelf",
+        "#clarify-box",
+        "#info-strings",
+        "#menu",
+        "#actions",
+        "#subscribe-button",
+        "ytd-subscribe-button-renderer",
+        ".ytp-ce-element",
+        ".ytp-cards-teaser",
+      ],
+      preferSchemaOrg: true,
     },
   ],
 

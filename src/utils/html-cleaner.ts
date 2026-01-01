@@ -12,6 +12,8 @@ const NEGATIVE_SELECTORS = [
   '[id*="sidebar"]',
   '[class*="side-bar"]',
   '[id*="side-bar"]',
+  "aside",
+  ".aside",
 
   // Comments
   '[class*="comment"]',
@@ -30,8 +32,9 @@ const NEGATIVE_SELECTORS = [
   '[id*="sign-up"]',
   '[aria-label*="newsletter"]',
   '[aria-label*="subscribe"]',
+  '[class*="email-signup"]',
 
-  // Advertisements
+  // Advertisements (enhanced from Defuddle)
   '[class*="advertisement"]',
   '[id*="advertisement"]',
   '[class*="ad-container"]',
@@ -43,6 +46,14 @@ const NEGATIVE_SELECTORS = [
   '[id*="sponsored"]',
   "[data-ad]",
   "[data-advertisement]",
+  '.ad:not([class*="gradient"])',
+  '[class^="ad-"]',
+  '[class$="-ad"]',
+  '[id^="ad-"]',
+  '[id$="-ad"]',
+  '[role="banner"]',
+  '[alt*="advert"]',
+  "#barrier-page",
 
   // Social/Sharing widgets
   '[class*="social"]',
@@ -51,6 +62,7 @@ const NEGATIVE_SELECTORS = [
   '[id*="share"]',
   '[class*="sharing"]',
   '[id*="sharing"]',
+  ".sharedaddy",
 
   // Related content
   '[class*="related"]',
@@ -61,17 +73,31 @@ const NEGATIVE_SELECTORS = [
   '[id*="promo"]',
   '[class*="more-stories"]',
   '[class*="more-articles"]',
+  '[class*="read-more"]',
+  '[class*="readmore"]',
+  '[class*="read-next"]',
+  '[class*="keep-reading"]',
 
   // Navigation
   "nav",
   '[role="navigation"]',
   '[class*="breadcrumb"]',
   '[id*="breadcrumb"]',
+  "header",
+  ".header:not(.banner)",
+  "#header",
+  '[class*="navigation"]',
+  '[id*="navigation"]',
+  ".menu",
+  "#menu",
+  '[class*="masthead"]',
 
   // Complementary content
   '[role="complementary"]',
+  '[role="dialog"]',
 
-  // Footer elements (often contain unrelated content)
+  // Footer elements
+  "footer",
   '[class*="footer"]',
   '[id*="footer"]',
 
@@ -89,17 +115,26 @@ const NEGATIVE_SELECTORS = [
   '[class*="slider"]',
   '[id*="slider"]',
 
-  // Tags and meta
+  // Tags and meta (enhanced from Defuddle)
   '[class*="tags"]',
   '[class*="meta"]',
   '[class*="talkback"]',
+  '[class*="byline"]',
+  '[class*="dateline"]',
+  '[class*="timestamp"]',
+  '[class*="author-bio"]',
+  '[class*="author-box"]',
+  ".toc",
+  "#toc",
+  '[class*="table-of-contents"]',
 
   // Popups and modals
   '[class*="popup"]',
   '[class*="modal"]',
   '[class*="overlay"]',
+  '[class*="lightbox"]',
 
-  // Cookie banners and consent
+  // Cookie banners and consent (enhanced from Defuddle)
   '[class*="cookie"]',
   '[id*="cookie"]',
   '[class*="consent"]',
@@ -108,14 +143,60 @@ const NEGATIVE_SELECTORS = [
   '[id*="gdpr"]',
   '[class*="privacy-banner"]',
   '[id*="privacy-banner"]',
+  '[class*="privacy-notice"]',
+  '[class*="privacy-settings"]',
 
   // Skip links and print-only elements
   '[class*="skip-link"]',
   '[class*="print-only"]',
   ".sr-only",
+  ".screen-reader-text",
+  ".visually-hidden",
+  '[class*="noprint"]',
+  '[data-print-layout="hide"]',
 
   // Hidden elements
-  '[aria-hidden="true"]',
+  '[aria-hidden="true"]:not([class*="math"])',
+  '[style*="display: none"]:not([class*="math"])',
+  '[style*="display:none"]:not([class*="math"])',
+  "[hidden]",
+  ".hidden",
+  ".invisible",
+
+  // Forms and inputs (from Defuddle)
+  "form",
+  "fieldset",
+  'input:not([type="checkbox"])',
+  "textarea",
+  "select",
+  "button",
+
+  // Call-to-action elements (from Defuddle)
+  '[class*="cta"]',
+  '[class*="donate"]',
+  '[class*="donation"]',
+  '[class*="paywall"]',
+  '[class*="upsell"]',
+  '[class*="feedback"]',
+
+  // Pagination
+  '[class*="pagination"]',
+  '[class*="pager"]',
+
+  // Author/profile sections (often redundant)
+  '[class*="profile"]',
+  '[class*="avatar"]',
+  '[class*="bio-block"]',
+
+  // Trending/popular sections
+  '[class*="trending"]',
+  '[class*="popular"]',
+  '[class*="most-read"]',
+
+  // Platform-specific (from Defuddle)
+  ".pencraft:not(.pc-display-contents)", // Substack
+  "#NYT_ABOVE_MAIN_CONTENT_REGION", // NYTimes
+  "table.infobox", // Wikipedia
 ];
 
 /**

@@ -14,7 +14,12 @@ export function NotReadableActions({ url, onRetryWithoutCheck }: NotReadableActi
         onAction={onRetryWithoutCheck}
         shortcut={{ modifiers: ["cmd"], key: "enter" }}
       />
-      <Action.OpenInBrowser title="Open in Browser" url={url} shortcut={Keyboard.Shortcut.Common.Open} icon={Icon.Globe} />
+      <Action.OpenInBrowser
+        title="Open in Browser"
+        url={url}
+        shortcut={Keyboard.Shortcut.Common.Open}
+        icon={Icon.Globe}
+      />
       <Action.CopyToClipboard title="Copy URL" content={url} shortcut={Keyboard.Shortcut.Common.Copy} />
     </ActionPanel>
   );

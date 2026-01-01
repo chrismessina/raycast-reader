@@ -2,6 +2,7 @@ import { Readability, isProbablyReaderable } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { parseLog } from "./logger";
 import { preCleanHtml } from "./html-cleaner";
+import { MetadataExtractor } from "./metadata-extractor";
 
 export interface ArticleContent {
   title: string;
@@ -11,6 +12,12 @@ export interface ArticleContent {
   byline: string | null;
   siteName: string | null;
   length: number;
+  // Enhanced metadata from Schema.org, OG, Twitter Cards
+  author: string | null;
+  published: string | null;
+  image: string | null;
+  description: string | null;
+  favicon: string | null;
 }
 
 export interface ReadabilityError {
@@ -72,6 +79,11 @@ export function parseArticle(
 
     const { document } = parseHTML(cleaningResult.html);
 
+    // Extract rich metadata from Schema.org JSON-LD, OG tags, etc. BEFORE cleaning
+    // We use the original HTML to preserve metadata that might be removed during cleaning
+    const { document: originalDoc } = parseHTML(absoluteHtml);
+    const metadata = MetadataExtractor.extract(originalDoc, url);
+
     // Pre-check if content is likely readable
     if (!options.skipPreCheck) {
       const isReadable = isProbablyReaderable(document);
@@ -83,7 +95,8 @@ export function parseArticle(
           success: false,
           error: {
             type: "not-readable",
-            message: "This page doesn't appear to contain readable article content. It may be a homepage, search results, or a page with mostly navigation elements.",
+            message:
+              "This page doesn't appear to contain readable article content. It may be a homepage, search results, or a page with mostly navigation elements.",
           },
         };
       }
@@ -126,16 +139,24 @@ export function parseArticle(
       hasSiteName: !!article.siteName,
     });
 
+    // Merge Readability output with extracted metadata
+    // Metadata provides fallbacks and additional fields
     return {
       success: true,
       article: {
-        title: article.title || "Untitled",
+        title: article.title || metadata.title || "Untitled",
         content: article.content,
         textContent,
-        excerpt: article.excerpt || "",
+        excerpt: article.excerpt || metadata.description || "",
         byline: article.byline || null,
-        siteName: article.siteName || null,
+        siteName: article.siteName || metadata.siteName || null,
         length: article.length || textContent.length,
+        // Enhanced metadata fields
+        author: metadata.author || article.byline || null,
+        published: metadata.published || null,
+        image: metadata.image || null,
+        description: metadata.description || article.excerpt || null,
+        favicon: metadata.favicon || null,
       },
     };
   } catch (err) {

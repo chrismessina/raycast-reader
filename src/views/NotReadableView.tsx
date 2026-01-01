@@ -23,9 +23,6 @@ export function NotReadableView({ url, error, onRetryWithoutCheck }: NotReadable
   const markdown = buildNotReadableMarkdown(error);
 
   return (
-    <Detail
-      markdown={markdown}
-      actions={<NotReadableActions url={url} onRetryWithoutCheck={onRetryWithoutCheck} />}
-    />
+    <Detail markdown={markdown} actions={<NotReadableActions url={url} onRetryWithoutCheck={onRetryWithoutCheck} />} />
   );
 }
