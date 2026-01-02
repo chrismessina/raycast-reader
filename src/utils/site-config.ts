@@ -12,7 +12,7 @@
 export interface SiteConfig {
   /** Display name for the site */
   name: string;
-  
+
   /**
    * CSS selector(s) to find the main article content.
    * Can be a single selector or multiple comma-separated selectors.
@@ -21,7 +21,7 @@ export interface SiteConfig {
    * - Multiple: "article .content, .post-body, .entry-content"
    */
   articleSelector?: string;
-  
+
   /**
    * Array of CSS selectors for elements to remove before extraction.
    * Each selector is applied independently to find and remove matching elements.
@@ -30,7 +30,7 @@ export interface SiteConfig {
    * - [".newsletter-signup", '[data-testid="share-button"]']
    */
   removeSelectors?: string[];
-  
+
   /**
    * If true, prefer Schema.org metadata over other sources.
    * Useful for sites with rich structured data.
@@ -437,7 +437,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
-
   // Quartz
   [
     /^(.*\.)?qz\.com$/i,
@@ -505,6 +504,21 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       name: "Tumblr",
       articleSelector: ".post-content, .body-text",
       removeSelectors: [".post-notes", ".reblog-header", ".post-controls", ".like-button"],
+    },
+  ],
+
+  // Graham Duncan Blog (Elementor-based WordPress)
+  [
+    /^grahamduncan\.blog$/i,
+    {
+      name: "GrahamDuncanBlog",
+      articleSelector: ".elementor-widget-theme-post-content",
+      removeSelectors: [
+        ".elementor-col-33", // Remove sidebar navigation column
+        "nav",
+        ".menu-main-menu-container",
+        "#menu-main-menu",
+      ],
     },
   ],
 ];

@@ -12,7 +12,7 @@ export function NotReadableActions({ url, onRetryWithoutCheck }: NotReadableActi
         title="Try Anyway"
         icon={Icon.ArrowRight}
         onAction={onRetryWithoutCheck}
-        shortcut={{ modifiers: ["cmd"], key: "enter" }}
+        shortcut={{ modifiers: ["cmd", "shift"], key: "enter" }}
       />
       <Action.OpenInBrowser
         title="Open in Browser"

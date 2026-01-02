@@ -4,6 +4,7 @@ import { parseLog } from "./logger";
 import { preCleanHtml } from "./html-cleaner";
 import { MetadataExtractor } from "./metadata-extractor";
 import { getExtractor } from "../extractors";
+import { getSiteConfig } from "./site-config";
 
 export interface ArticleContent {
   title: string;
@@ -28,6 +29,7 @@ export interface ReadabilityError {
 
 export interface ReadabilityOptions {
   skipPreCheck?: boolean;
+  forceParse?: boolean;
 }
 
 /**
@@ -150,24 +152,104 @@ export function parseArticle(
     const reader = new Readability(document);
     const article = reader.parse();
 
-    if (!article) {
-      parseLog.error("parse:error", { url, reason: "Readability returned null" });
-      return {
-        success: false,
-        error: {
-          type: "parse-failed",
-          message: "Unable to extract content from this page",
-        },
-      };
-    }
+    if (!article || !article.content || article.content.trim().length === 0) {
+      const reason = !article ? "Readability returned null" : "empty content";
+      parseLog.warn("parse:readability-failed", { url, reason });
 
-    if (!article.content || article.content.trim().length === 0) {
-      parseLog.error("parse:error", { url, reason: "empty content" });
+      // If forceParse is enabled, try direct extraction using site config articleSelector
+      if (options.forceParse) {
+        const hostname = new URL(url).hostname;
+        const config = getSiteConfig(hostname);
+
+        if (config?.articleSelector) {
+          parseLog.log("parse:force-extract", { url, selector: config.articleSelector });
+          const contentElement = document.querySelector(config.articleSelector);
+
+          if (contentElement) {
+            const content = contentElement.innerHTML || "";
+            const textContent = contentElement.textContent || "";
+
+            if (content.trim().length > 0) {
+              parseLog.log("parse:force-extract:success", {
+                url,
+                selector: config.articleSelector,
+                contentLength: content.length,
+              });
+
+              return {
+                success: true,
+                article: {
+                  title: metadata.title || "Untitled",
+                  content,
+                  textContent,
+                  excerpt: metadata.description || "",
+                  byline: null,
+                  siteName: metadata.siteName || null,
+                  length: textContent.length,
+                  author: metadata.author || null,
+                  published: metadata.published || null,
+                  image: metadata.image || null,
+                  description: metadata.description || null,
+                  favicon: metadata.favicon || null,
+                },
+              };
+            }
+          }
+        }
+
+        // Last resort: try to find any reasonable content container
+        parseLog.log("parse:force-extract:fallback", { url });
+        const fallbackSelectors = [
+          ".post-content",
+          ".entry-content",
+          ".article-content",
+          ".content",
+          "article",
+          "main",
+          '[role="main"]',
+        ];
+
+        for (const selector of fallbackSelectors) {
+          const el = document.querySelector(selector);
+          if (el) {
+            const content = el.innerHTML || "";
+            const textContent = el.textContent || "";
+
+            if (textContent.trim().length > 200) {
+              parseLog.log("parse:force-extract:fallback-success", {
+                url,
+                selector,
+                contentLength: content.length,
+              });
+
+              return {
+                success: true,
+                article: {
+                  title: metadata.title || "Untitled",
+                  content,
+                  textContent,
+                  excerpt: metadata.description || "",
+                  byline: null,
+                  siteName: metadata.siteName || null,
+                  length: textContent.length,
+                  author: metadata.author || null,
+                  published: metadata.published || null,
+                  image: metadata.image || null,
+                  description: metadata.description || null,
+                  favicon: metadata.favicon || null,
+                },
+              };
+            }
+          }
+        }
+      }
+
+      parseLog.error("parse:error", { url, reason });
       return {
         success: false,
         error: {
-          type: "empty-content",
-          message: "No content found on this page",
+          type: reason === "empty content" ? "empty-content" : "parse-failed",
+          message: "Unable to extract content from this page",
         },
       };
     }

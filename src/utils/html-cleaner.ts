@@ -324,17 +324,41 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
   // Build a set of protected elements
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protectedElements = new Set<any>();
-  PROTECTED_SELECTORS.forEach((selector) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    document.querySelectorAll(selector).forEach((el: any) => {
-      protectedElements.add(el);
-      // Also protect all ancestors
-      let parent = el.parentElement;
-      while (parent) {
-        protectedElements.add(parent);
-        parent = parent.parentElement;
-      }
-    });
+
+  // Collect all selectors to protect (built-in + site config articleSelector)
+  const allProtectedSelectors = [...PROTECTED_SELECTORS];
+  try {
+    const hostname = new URL(url).hostname;
+    const config = getSiteConfig(hostname);
+    if (config?.articleSelector) {
+      // Add site-specific article selector to protected list
+      allProtectedSelectors.push(config.articleSelector);
+      parseLog.log("clean:protecting-article-selector", { url, selector: config.articleSelector });
+    }
+  } catch {
+    // Invalid URL, skip
+  }
+
+  allProtectedSelectors.forEach((selector) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      document.querySelectorAll(selector).forEach((el: any) => {
+        protectedElements.add(el);
+        // Also protect all ancestors
+        let parent = el.parentElement;
+        while (parent) {
+          protectedElements.add(parent);
+          parent = parent.parentElement;
+        }
+        // Also protect all descendants
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        el.querySelectorAll("*").forEach((child: any) => {
+          protectedElements.add(child);
+        });
+      });
+    } catch {
+      // Selector might fail in linkedom, skip
+    }
   });
 
   // Remove negative elements (unless protected)

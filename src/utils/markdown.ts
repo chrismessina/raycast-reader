@@ -55,6 +55,29 @@ turndown.addRule("removeByRole", {
   replacement: () => "",
 });
 
+// Custom rule to handle linked images (images wrapped in anchor tags)
+// Converts [![](img)](link) to just ![](img) to avoid errant brackets
+turndown.addRule("linkedImages", {
+  filter: (node: HTMLElement) => {
+    return (
+      node.nodeName === "A" &&
+      node.childNodes.length > 0 &&
+      Array.from(node.childNodes).some((child) => {
+        if (child.nodeName === "IMG") return true;
+        // Check if any child element contains an img
+        if (child.nodeType === 1) {
+          return (child as HTMLElement).querySelector("img") !== null;
+        }
+        return false;
+      })
+    );
+  },
+  replacement: (content) => {
+    // Return just the image content without the link wrapper
+    return content;
+  },
+});
+
 // Custom rule to italicize figcaption content (image captions)
 // Handles multiline captions by wrapping each line in italics
 turndown.addRule("figcaption", {

@@ -14,6 +14,7 @@ export type LoadArticleResult =
 
 interface LoadArticleOptions {
   skipPreCheck: boolean;
+  forceParse?: boolean;
 }
 
 /**
@@ -73,12 +74,23 @@ export async function loadArticleFromUrl(
   }
 
   // Step 2: Parse with Readability
-  urlLog.log("parse:start", { url, skipPreCheck: options.skipPreCheck });
+  // When skipPreCheck is true (from "Try Anyway"), also enable forceParse
+  const forceParse = options.forceParse ?? options.skipPreCheck;
+  urlLog.log("parse:start", { url, skipPreCheck: options.skipPreCheck, forceParse });
   const parseResult = parseArticle(fetchResult.data.html, fetchResult.data.url, {
     skipPreCheck: options.skipPreCheck,
+    forceParse,
   });
   if (!parseResult.success) {
     urlLog.error("parse:failed", { url, errorType: parseResult.error.type, message: parseResult.error.message });
+
+    // Try browser tab fallback when parsing fails (page might render differently in browser)
+    const browserResult = await tryGetContentFromOpenTab(url);
+    if (browserResult.status === "success") {
+      urlLog.log("parse:browser-fallback-success", { url });
+      return { status: "success", article: browserResult.article };
+    }
+
     if (parseResult.error.type === "not-readable") {
       return { status: "not-readable", url, error: parseResult.error.message };
     }
