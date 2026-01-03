@@ -73,15 +73,15 @@
 
 ### 3.1 Fetcher Extension
 
-- [ ] Add `GOOGLEBOT_USER_AGENT` constant to `src/utils/fetcher.ts`
-- [ ] Add `GOOGLEBOT_TIMEOUT_MS` constant (15000ms)
-- [ ] Create `fetchHtmlAsGooglebot()` function
-- [ ] Handle same error cases as `fetchHtml()`
+- [x] Add `GOOGLEBOT_USER_AGENT` constant to `src/utils/fetcher.ts`
+- [x] Add `GOOGLEBOT_TIMEOUT_MS` constant (15000ms)
+- [x] Create `fetchHtmlAsGooglebot()` function
+- [x] Handle same error cases as `fetchHtml()`
 
 ### 3.2 Integration
 
-- [ ] Add Googlebot fetch as first bypass attempt in hopper flow
-- [ ] Log Googlebot fetch attempts and results
+- [x] Log Googlebot fetch attempts and results (`bypass:googlebot:start/success/failed`)
+- [ ] Add Googlebot fetch as first bypass attempt in hopper flow (Phase 5)
 
 **Milestone:** Googlebot User-Agent bypass working.
 
@@ -91,8 +91,8 @@
 
 ### 4.1 Archive Fetcher Module
 
-- [ ] Create `src/utils/archive-fetcher.ts`
-- [ ] Define `ArchiveFetchResult` type:
+- [x] Create `src/utils/archive-fetcher.ts`
+- [x] Define `ArchiveFetchResult` type:
 
   ```typescript
   interface ArchiveFetchResult {
@@ -107,18 +107,20 @@
 
 ### 4.2 archive.is Integration
 
-- [ ] Add `ARCHIVE_IS_TIMEOUT_MS` constant (45000ms)
-- [ ] Implement `fetchFromArchiveIs(url)` function
-- [ ] Handle redirects to actual snapshot URL
-- [ ] Extract and return snapshot URL for attribution
+- [x] Add `ARCHIVE_IS_TIMEOUT_MS` constant (45000ms)
+- [x] Implement `fetchFromArchiveIs(url)` function
+- [x] Handle redirects to actual snapshot URL
+- [x] Extract and return snapshot URL for attribution
+- [x] Log archive.is fetch attempts (`bypass:archive-is:start/success/failed`)
 
 ### 4.3 Wayback Machine Integration
 
-- [ ] Add `WAYBACK_TIMEOUT_MS` constant (30000ms)
-- [ ] Implement `fetchFromWayback(url)` function
-- [ ] Use Wayback availability API first
-- [ ] Fetch from snapshot URL
-- [ ] Extract timestamp for attribution
+- [x] Add `WAYBACK_TIMEOUT_MS` constant (30000ms)
+- [x] Implement `fetchFromWayback(url)` function
+- [x] Use Wayback availability API first
+- [x] Fetch from snapshot URL
+- [x] Extract and format timestamp for attribution
+- [x] Log Wayback fetch attempts (`bypass:wayback:start/snapshot-found/success/failed`)
 
 **Milestone:** Archive service fetching working.
 
