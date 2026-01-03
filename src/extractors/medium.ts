@@ -64,7 +64,7 @@ export class MediumExtractor extends BaseExtractor {
       '[data-testid="storyReadTime"]',
       ".ja.jb", // Date separator dots
       ".ac.r.iz", // Metadata container with reading time
-      
+
       // Interactive elements
       '[data-testid="headerClapButton"]',
       '[data-testid="headerBookmarkButton"]',
@@ -73,11 +73,11 @@ export class MediumExtractor extends BaseExtractor {
       '[data-testid="headerStoryOptionsButton"]',
       ".pw-multi-vote-icon",
       ".pw-multi-vote-count",
-      
+
       // Author photo (keep author name but remove photo)
       '[data-testid="authorPhoto"]',
       ".m.eo img", // Author avatar images
-      
+
       // Navigation and UI elements
       'button[aria-label*="clap"]',
       'button[aria-label*="bookmark"]',
@@ -85,18 +85,18 @@ export class MediumExtractor extends BaseExtractor {
       'button[aria-label*="Listen"]',
       'button[aria-label*="More"]',
       ".ko.aq", // Action buttons
-      
+
       // Member-only badges
       '[aria-label="Member-only story"]',
       ".gk.r.gl", // Member badge container
-      
+
       // "Press enter or click" text
       ".er.es.et", // Screen reader text for images
       'span[class*="speechify-ignore"]',
-      
+
       // Duplicate OG image (first large image is usually duplicate)
-      'figure.ml.mm.mn.mo.mp.mq:first-of-type',
-      
+      "figure.ml.mm.mn.mo.mp.mq:first-of-type",
+
       // Social/action panels
       ".ac.cw.jc", // Action panel container
       ".fp.l.k.j.e", // Spacer elements
@@ -137,19 +137,19 @@ export class MediumExtractor extends BaseExtractor {
     // Remove AI summary brackets like [text in brackets]
     // But only at the start of blockquotes (summary sections)
     content = content.replace(/>\s*\[([^\]]+)\]\s*</g, "> $1<");
-    
+
     // Remove "Press enter or click to view image in full size" text
     content = content.replace(/Press enter or click to view image in full size/gi, "");
-    
+
     // Remove empty paragraphs and divs
     content = content.replace(/<(p|div)[^>]*>\s*<\/(p|div)>/g, "");
-    
+
     // Clean up multiple consecutive line breaks
     content = content.replace(/(\n\s*){3,}/g, "\n\n");
-    
+
     // Remove aria-hidden elements
     content = content.replace(/<[^>]+aria-hidden="true"[^>]*>.*?<\/[^>]+>/gs, "");
-    
+
     return content.trim();
   }
 

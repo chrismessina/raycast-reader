@@ -1,8 +1,9 @@
-import { urlLog } from "./logger";
+import { urlLog, paywallLog } from "./logger";
 import { fetchHtml } from "./fetcher";
 import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
 import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
+import { tryBypassPaywall, createArchiveSource, ArchiveSource } from "./paywall-hopper";
 import { BrowserTab } from "../types/browser";
 import { ArticleState } from "../types/article";
 
@@ -15,6 +16,8 @@ export type LoadArticleResult =
 interface LoadArticleOptions {
   skipPreCheck: boolean;
   forceParse?: boolean;
+  /** Whether Paywall Hopper is enabled (tries bypass methods on blocked pages) */
+  enablePaywallHopper?: boolean;
 }
 
 /**
@@ -30,8 +33,10 @@ export async function loadArticleFromUrl(
 
   // Step 1: Fetch HTML
   const fetchResult = await fetchHtml(url);
+  let archiveSource: ArchiveSource | undefined;
+
   if (!fetchResult.success) {
-    // Check if this is a blocked error (403) that could be resolved via browser extension
+    // Check if this is a blocked error (403) that could be resolved
     if (fetchResult.error.type === "blocked" && fetchResult.error.statusCode === 403) {
       // First, try automatic fallback: check if URL is already open in a browser tab
       const browserResult = await tryGetContentFromOpenTab(url);
@@ -39,6 +44,71 @@ export async function loadArticleFromUrl(
       if (browserResult.status === "success") {
         urlLog.log("fetch:auto-fallback-success", { url });
         return { status: "success", article: browserResult.article };
+      }
+
+      // If Paywall Hopper is enabled, try bypass methods before showing blocked view
+      if (options.enablePaywallHopper) {
+        paywallLog.log("hopper:blocked-page-detected", { url, statusCode: 403 });
+
+        const hopperResult = await tryBypassPaywall(url);
+
+        if (hopperResult.success && hopperResult.html) {
+          paywallLog.log("hopper:bypass-success", {
+            url,
+            source: hopperResult.source,
+            archiveUrl: hopperResult.archiveUrl,
+          });
+
+          // Parse the bypassed content
+          const bypassParseResult = parseArticle(hopperResult.html, url, {
+            skipPreCheck: true,
+            forceParse: true,
+          });
+
+          if (bypassParseResult.success) {
+            archiveSource = createArchiveSource(hopperResult);
+
+            // Format and return the article with archive annotation
+            const formatted = formatArticle(bypassParseResult.article.title, bypassParseResult.article.content, {
+              image: bypassParseResult.article.image,
+              archiveSource: archiveSource
+                ? {
+                    service: archiveSource.service,
+                    url: archiveSource.url,
+                    timestamp: archiveSource.timestamp,
+                  }
+                : undefined,
+            });
+
+            const article: ArticleState = {
+              bodyMarkdown: formatted.markdown,
+              title: bypassParseResult.article.title,
+              byline: bypassParseResult.article.byline,
+              siteName: bypassParseResult.article.siteName,
+              url,
+              source,
+              textContent: bypassParseResult.article.textContent,
+              bypassedReadabilityCheck: true,
+              archiveSource,
+            };
+
+            urlLog.log("session:ready", {
+              url,
+              title: formatted.title,
+              markdownLength: formatted.markdown.length,
+              bypassedCheck: true,
+              archiveSource: hopperResult.source,
+            });
+
+            return { status: "success", article };
+          } else {
+            paywallLog.log("hopper:parse-failed", {
+              url,
+              source: hopperResult.source,
+              error: bypassParseResult.error.message,
+            });
+          }
+        }
       }
 
       if (browserResult.status === "fetch_failed") {

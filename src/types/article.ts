@@ -1,3 +1,5 @@
+import { ArchiveSource } from "../utils/paywall-hopper";
+
 export interface ArticleState {
   bodyMarkdown: string;
   title: string;
@@ -7,4 +9,6 @@ export interface ArticleState {
   source: string;
   textContent: string;
   bypassedReadabilityCheck?: boolean;
+  /** Metadata about archive source if content was retrieved via Paywall Hopper */
+  archiveSource?: ArchiveSource;
 }

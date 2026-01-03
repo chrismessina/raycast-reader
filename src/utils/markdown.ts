@@ -139,9 +139,20 @@ export interface FormattedArticle {
   title: string;
 }
 
+export interface ArchiveAnnotation {
+  /** Which service provided the content */
+  service: "googlebot" | "archive.is" | "wayback" | "browser" | "none";
+  /** URL of the archived version (if applicable) */
+  url?: string;
+  /** Timestamp of the archived version */
+  timestamp?: string;
+}
+
 export interface FormatArticleOptions {
   /** Image URL to prepend at the top of the article */
   image?: string | null;
+  /** Archive source annotation to display */
+  archiveSource?: ArchiveAnnotation;
 }
 
 /**
@@ -158,9 +169,46 @@ export function formatArticle(title: string, content: string, options?: FormatAr
     contentMarkdown = `![](${options.image})\n\n${contentMarkdown}`;
   }
 
+  // Add archive source annotation if content was retrieved via Paywall Hopper
+  if (options?.archiveSource && options.archiveSource.service !== "none") {
+    const annotation = formatArchiveAnnotation(options.archiveSource);
+    if (annotation) {
+      contentMarkdown = `${annotation}\n\n${contentMarkdown}`;
+    }
+  }
+
   // Return just the body content - title and metadata will be added by the component
   return {
     markdown: contentMarkdown,
     title,
   };
+}
+
+/**
+ * Formats an archive source annotation for display
+ */
+function formatArchiveAnnotation(source: ArchiveAnnotation): string | null {
+  const serviceLabels: Record<string, string> = {
+    googlebot: "Googlebot bypass",
+    "archive.is": "archive.is",
+    wayback: "Wayback Machine",
+    browser: "browser tab",
+  };
+
+  const label = serviceLabels[source.service];
+  if (!label) return null;
+
+  let annotation = `> 📦 **Archived Copy**`;
+
+  if (source.url) {
+    annotation += ` — Retrieved from [${label}](${source.url})`;
+  } else {
+    annotation += ` — Retrieved via ${label}`;
+  }
+
+  if (source.timestamp) {
+    annotation += ` (${source.timestamp})`;
+  }
+
+  return annotation;
 }

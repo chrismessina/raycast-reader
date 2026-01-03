@@ -130,38 +130,30 @@
 
 ### 5.1 Hopper Module
 
-- [ ] Create `src/utils/paywall-hopper.ts`
-- [ ] Define `PaywallHopperResult` type:
-
-  ```typescript
-  interface PaywallHopperResult {
-    success: boolean;
-    html?: string;
-    source: 'googlebot' | 'archive.is' | 'wayback' | 'none';
-    archiveUrl?: string;
-    timestamp?: string;
-    error?: string;
-  }
-  ```
+- [x] Create `src/utils/paywall-hopper.ts`
+- [x] Define `PaywallHopperResult` type
+- [x] Define `ArchiveSource` type for article state
+- [x] Export `createArchiveSource()` helper
 
 ### 5.2 Bypass Sequence
 
-- [ ] Implement `tryBypassPaywall(url)` function
-- [ ] Execute bypass attempts in order:
+- [x] Implement `tryBypassPaywall(url)` function
+- [x] Execute bypass attempts in order:
   1. Googlebot User-Agent fetch
   2. archive.is fetch
   3. Wayback Machine fetch
-- [ ] Return first successful result
-- [ ] Log all attempts for debugging
+- [x] Return first successful result
+- [x] Log all attempts (`hopper:start/trying/success/failed`)
 
 ### 5.3 Article Loader Integration
 
-- [ ] Modify `loadArticleFromUrl()` in `src/utils/article-loader.ts`
-- [ ] After parsing, check `extractor.isPaywalled()` or generic detection
-- [ ] If paywalled AND Paywall Hopper enabled:
-  - [ ] Check for open browser tab first (subscriber flow)
-  - [ ] If no tab, invoke `tryBypassPaywall()`
-- [ ] Pass archive source metadata through to article state
+- [x] Add `enablePaywallHopper` option to `LoadArticleOptions`
+- [x] Modify `loadArticleFromUrl()` in `src/utils/article-loader.ts`
+- [x] On 403 blocked AND Paywall Hopper enabled:
+  - [x] Check for open browser tab first (subscriber flow)
+  - [x] If no tab, invoke `tryBypassPaywall()`
+- [x] Parse bypassed content and format with archive annotation
+- [x] Pass archive source metadata through to article state
 
 **Milestone:** Full bypass flow working end-to-end.
 
@@ -171,24 +163,18 @@
 
 ### 6.1 Type Extensions
 
-- [ ] Add `archiveSource` field to `ArticleState` in `src/types/article.ts`:
-
-  ```typescript
-  archiveSource?: {
-    service: 'googlebot' | 'archive.is' | 'wayback' | 'browser';
-    url?: string;
-    timestamp?: string;
-    retrievedAt: string;
-  };
-  ```
+- [x] Add `archiveSource` field to `ArticleState` in `src/types/article.ts`
+- [x] Import `ArchiveSource` type from `paywall-hopper.ts`
 
 ### 6.2 Markdown Annotation
 
-- [ ] Modify `formatArticle()` in `src/utils/markdown.ts`
-- [ ] Add archive source annotation when `archiveSource` is present:
+- [x] Add `ArchiveAnnotation` interface to `src/utils/markdown.ts`
+- [x] Add `archiveSource` option to `FormatArticleOptions`
+- [x] Implement `formatArchiveAnnotation()` helper function
+- [x] Add archive source annotation when `archiveSource` is present:
 
   ```markdown
-  > 📦 **Archived Copy** — Retrieved from [archive.is](url) on date
+  > 📦 **Archived Copy** — Retrieved from [archive.is](url) (timestamp)
   ```
 
 **Milestone:** Archive attribution visible in article display.
@@ -292,10 +278,10 @@
 
 > Out of scope for initial implementation, tracked for future work.
 
+- [ ] Cache archive URL content for quick re-access
+- [ ] Domain-specific bypass rules from Bypass Paywalls Clean
 - [ ] Jina.ai integration (reference Webpage to Markdown)
 - [ ] removepaywall.com as additional fallback
-- [ ] Cache archive URLs for quick re-access
-- [ ] Domain-specific bypass rules from Bypass Paywalls Clean
 - [ ] Cookie manipulation techniques
 - [ ] Google Cache fallback (if still available)
 - [ ] Parallel fetching (hit multiple sources simultaneously)

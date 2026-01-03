@@ -59,7 +59,7 @@ export const PAYWALL_SELECTORS: string[] = [
   '[class*="meter-"]',
   '[class*="metered"]',
   '[id*="paywall"]',
-  '[data-paywall]',
+  "[data-paywall]",
   '[data-testid*="paywall"]',
   ".pw-overlay",
   ".subscriber-only",
@@ -134,11 +134,7 @@ export function getSitePaywallSelectors(url: string): string[] {
  * @param textContent - The extracted text content to analyze
  * @returns PaywallDetectionResult with detection status and signals
  */
-export function detectPaywall(
-  document: PaywallDocument,
-  url: string,
-  textContent: string,
-): PaywallDetectionResult {
+export function detectPaywall(document: PaywallDocument, url: string, textContent: string): PaywallDetectionResult {
   const signals: string[] = [];
 
   // 1. Short content detection
@@ -215,7 +211,5 @@ export function isKnownPaywalledSite(url: string): boolean {
     "substack.com",
   ];
 
-  return knownPaywalledDomains.some(
-    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-  );
+  return knownPaywalledDomains.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
 }
