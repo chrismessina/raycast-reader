@@ -11,6 +11,7 @@ import { urlLog } from "./logger";
 import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
 import { BrowserTab, BrowserContentResult, TabContentResult } from "../types/browser";
+import { ArticleState } from "../types/article";
 
 // Cache the extension availability check to avoid repeated API calls
 let extensionAvailableCache: boolean | null = null;
@@ -63,6 +64,58 @@ function normalizeUrl(url: string): string {
 }
 
 /**
+ * Extract canonical URL from HTML content.
+ * Checks og:url, twitter:url, and link[rel="canonical"] in that order.
+ */
+function extractCanonicalUrl(html: string): string | null {
+  // Try og:url
+  const ogUrlMatch = html.match(/<meta[^>]+property=["']og:url["'][^>]+content=["']([^"']+)["']/i);
+  if (ogUrlMatch?.[1]) return ogUrlMatch[1];
+
+  // Try twitter:url
+  const twitterUrlMatch = html.match(/<meta[^>]+(?:property|name)=["']twitter:url["'][^>]+content=["']([^"']+)["']/i);
+  if (twitterUrlMatch?.[1]) return twitterUrlMatch[1];
+
+  // Try link[rel="canonical"]
+  const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  if (canonicalMatch?.[1]) return canonicalMatch[1];
+
+  // Also check reverse attribute order for link tag
+  const canonicalMatchReverse = html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i);
+  if (canonicalMatchReverse?.[1]) return canonicalMatchReverse[1];
+
+  return null;
+}
+
+/**
+ * Check if two URLs match, considering canonical URLs.
+ * Returns true if either URL matches directly or via canonical.
+ */
+export function urlsMatch(targetUrl: string, tabUrl: string, tabHtml?: string): boolean {
+  const normalizedTarget = normalizeUrl(targetUrl);
+  const normalizedTab = normalizeUrl(tabUrl);
+
+  // Direct match
+  if (normalizedTarget === normalizedTab) {
+    return true;
+  }
+
+  // Check canonical URL from tab HTML if provided
+  if (tabHtml) {
+    const canonicalUrl = extractCanonicalUrl(tabHtml);
+    if (canonicalUrl) {
+      const normalizedCanonical = normalizeUrl(canonicalUrl);
+      if (normalizedTarget === normalizedCanonical) {
+        urlLog.log("url:canonical-match", { targetUrl, tabUrl, canonicalUrl });
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
  * Find a tab matching the given URL.
  * Compares normalized URLs to handle minor differences.
  */
@@ -72,6 +125,76 @@ export async function findTabByUrl(targetUrl: string): Promise<BrowserTab | null
 
   const normalizedTarget = normalizeUrl(targetUrl);
   return tabs.find((tab) => normalizeUrl(tab.url) === normalizedTarget) ?? null;
+}
+
+/**
+ * Result from reimport attempt.
+ * Includes tab info so UI can prompt user to focus the tab if needed.
+ */
+export type ReimportResult =
+  | { status: "success"; article: ArticleState }
+  | { status: "no_matching_tab" }
+  | { status: "tab_inactive"; tab: BrowserTab }
+  | { status: "error"; error: string };
+
+/**
+ * Reimport article content from browser tab.
+ * Validates that the tab URL matches the target URL (including canonical URL check).
+ * Returns tab_inactive status if tab exists but is not focused (browser may have unloaded it).
+ */
+export async function reimportFromBrowserTab(targetUrl: string): Promise<ReimportResult> {
+  const tabs = await getBrowserTabs();
+  if (tabs.length === 0) {
+    urlLog.log("reimport:no-tabs", { targetUrl });
+    return { status: "no_matching_tab" };
+  }
+
+  // First, try direct URL match
+  const normalizedTarget = normalizeUrl(targetUrl);
+  let matchingTab = tabs.find((tab) => normalizeUrl(tab.url) === normalizedTarget);
+
+  // If no direct match, we'll need to check canonical URLs by fetching HTML from active tab
+  if (!matchingTab) {
+    // Only check active tab for canonical URL match (inactive tabs may timeout)
+    const activeTab = tabs.find((tab) => tab.active);
+    if (activeTab) {
+      try {
+        const html = await BrowserExtension.getContent({ format: "html", tabId: activeTab.id });
+        if (html && urlsMatch(targetUrl, activeTab.url, html)) {
+          matchingTab = activeTab;
+          urlLog.log("reimport:canonical-match-found", { targetUrl, tabUrl: activeTab.url });
+        }
+      } catch {
+        // Ignore errors fetching HTML for canonical check
+      }
+    }
+  }
+
+  if (!matchingTab) {
+    urlLog.log("reimport:no-matching-tab", { targetUrl });
+    return { status: "no_matching_tab" };
+  }
+
+  urlLog.log("reimport:found-tab", {
+    targetUrl,
+    tabId: matchingTab.id,
+    tabUrl: matchingTab.url,
+    isActive: matchingTab.active,
+  });
+
+  // If tab is not active, return status so UI can prompt user to focus it
+  if (!matchingTab.active) {
+    return { status: "tab_inactive", tab: matchingTab };
+  }
+
+  // Tab is active, fetch content
+  const result = await getContentFromTab(targetUrl, matchingTab.id);
+  if (result.success) {
+    urlLog.log("reimport:success", { targetUrl, source: "browser-tab" });
+    return { status: "success", article: result.article };
+  }
+
+  return { status: "error", error: result.error };
 }
 
 /**

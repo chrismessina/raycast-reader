@@ -17,6 +17,7 @@ interface ArticleActionsProps {
   currentSummary: string | null;
   canAccessAI: boolean;
   onSummarize: (style: SummaryStyle) => void;
+  onReimportFromBrowser?: () => void;
 }
 
 export function ArticleActions({
@@ -25,6 +26,7 @@ export function ArticleActions({
   currentSummary,
   canAccessAI,
   onSummarize,
+  onReimportFromBrowser,
 }: ArticleActionsProps) {
   return (
     <ActionPanel>
@@ -53,6 +55,14 @@ export function ArticleActions({
         content={articleUrl}
         shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
       />
+      {onReimportFromBrowser && (
+        <Action
+          title="Import from Browser Tab"
+          icon={Icon.Globe}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "r" }}
+          onAction={onReimportFromBrowser}
+        />
+      )}
     </ActionPanel>
   );
 }

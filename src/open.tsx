@@ -1,8 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Detail, LaunchProps, environment, AI, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import {
+  Detail,
+  LaunchProps,
+  environment,
+  AI,
+  getPreferenceValues,
+  showToast,
+  Toast,
+  ActionPanel,
+  Action,
+  Icon,
+} from "@raycast/api";
 import { useAI } from "@raycast/utils";
 import { urlLog } from "./utils/logger";
-import { getContentFromActiveTab } from "./utils/browser-extension";
+import {
+  getContentFromActiveTab,
+  isBrowserExtensionAvailable,
+  reimportFromBrowserTab,
+} from "./utils/browser-extension";
 import { BrowserTab } from "./types/browser";
 import { SummaryStyle } from "./types/summary";
 import { getStyleLabel, buildSummaryPrompt, logSummarySuccess, logSummaryError } from "./utils/summarizer";
@@ -41,6 +56,13 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
   // Not-readable page state
   const [notReadableUrl, setNotReadableUrl] = useState<string | null>(null);
+
+  // Browser extension state
+  const [hasBrowserExtensionAvailable, setHasBrowserExtensionAvailable] = useState(false);
+  const [reimportInactiveTab, setReimportInactiveTab] = useState<{
+    url: string;
+    tab: { id: number; title?: string };
+  } | null>(null);
 
   // URL form state
   const [showUrlForm, setShowUrlForm] = useState(false);
@@ -219,6 +241,65 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     setIsWaitingForBrowser(false);
   }, [blockedUrl]);
 
+  // Check browser extension availability on mount
+  useEffect(() => {
+    isBrowserExtensionAvailable().then(setHasBrowserExtensionAvailable);
+  }, []);
+
+  // Handler to reimport content from browser tab
+  const handleReimportFromBrowser = useCallback(async () => {
+    if (!article) return;
+
+    setIsLoading(true);
+    setError(null);
+    setReimportInactiveTab(null);
+
+    const result = await reimportFromBrowserTab(article.url);
+
+    if (result.status === "success") {
+      setArticle(result.article);
+      setSummaryInitialized(false); // Reset to allow new summary generation
+      urlLog.log("reimport:complete", { url: article.url });
+    } else if (result.status === "tab_inactive") {
+      // Tab found but not active - prompt user to focus it
+      setReimportInactiveTab({ url: article.url, tab: result.tab });
+      urlLog.log("reimport:tab-inactive", { url: article.url, tabId: result.tab.id });
+    } else if (result.status === "no_matching_tab") {
+      setError("No browser tab found with this URL. Please open the article in your browser first.");
+    } else {
+      setError(result.error);
+    }
+
+    setIsLoading(false);
+  }, [article]);
+
+  // Handler to retry reimport after user focuses the tab
+  const handleRetryReimport = useCallback(async () => {
+    if (!reimportInactiveTab) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    const result = await reimportFromBrowserTab(reimportInactiveTab.url);
+
+    if (result.status === "success") {
+      setArticle(result.article);
+      setReimportInactiveTab(null);
+      setSummaryInitialized(false);
+      urlLog.log("reimport:retry-success", { url: reimportInactiveTab.url });
+    } else if (result.status === "tab_inactive") {
+      // Still inactive
+      setError("Tab is still not focused. Please click on the tab in your browser to activate it.");
+    } else if (result.status === "no_matching_tab") {
+      setReimportInactiveTab(null);
+      setError("Tab no longer found. Please open the article in your browser.");
+    } else {
+      setError(result.error);
+    }
+
+    setIsLoading(false);
+  }, [reimportInactiveTab]);
+
   // Handler to retry loading without readability check
   const handleRetryWithoutCheck = useCallback(async () => {
     if (!notReadableUrl) return;
@@ -296,6 +377,21 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     return <Detail markdown={`# Error\n\n${error || "Unable to load article"}`} />;
   }
 
+  // Show inactive tab prompt when reimport found a tab but it's not focused
+  if (reimportInactiveTab) {
+    return (
+      <Detail
+        markdown={`# Focus Browser Tab\n\nThe article is open in a browser tab, but the tab is not currently focused.\n\nPlease click on the tab titled **"${reimportInactiveTab.tab.title || "Unknown"}"** in your browser to activate it, then try again.`}
+        actions={
+          <ActionPanel>
+            <Action title="Try Again" icon={Icon.ArrowClockwise} onAction={handleRetryReimport} />
+            <Action title="Cancel" icon={Icon.XMarkCircle} onAction={() => setReimportInactiveTab(null)} />
+          </ActionPanel>
+        }
+      />
+    );
+  }
+
   // Check if article has minimal or no content
   const hasMinimalContent = article.bodyMarkdown.trim().length < MINIMUM_ARTICLE_LENGTH;
   if (hasMinimalContent) {
@@ -318,6 +414,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       shouldShowSummary={shouldShowSummary}
       canAccessAI={canAccessAI}
       onSummarize={handleSummarize}
+      onReimportFromBrowser={hasBrowserExtensionAvailable ? handleReimportFromBrowser : undefined}
     />
   );
 }

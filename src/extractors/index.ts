@@ -2,6 +2,7 @@ import { BaseExtractor, ExtractorResult, ExtractorDocument } from "./_base";
 import { HackerNewsExtractor } from "./hackernews";
 import { GitHubExtractor } from "./github";
 import { RedditExtractor } from "./reddit";
+import { MediumExtractor } from "./medium";
 export { BaseExtractor };
 export type { ExtractorResult };
 
@@ -29,6 +30,11 @@ const EXTRACTOR_REGISTRY: Array<{
     pattern: /^(.*\.)?reddit\.com$/i,
     name: "Reddit",
     ExtractorClass: RedditExtractor,
+  },
+  {
+    pattern: /^(.*\.)?medium\.com$/i,
+    name: "Medium",
+    ExtractorClass: MediumExtractor,
   },
 ];
 

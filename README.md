@@ -18,7 +18,7 @@ Read the web distraction-free in Raycast.
 
 - **Clean Reading Experience** - Extracts article content and removes distractions
 - **AI Summaries** - Multiple summary styles powered by Raycast AI
-- **Browser Extension Fallback** - Access blocked pages via the Raycast browser extension
+- **Browser Extension Fallback** - Access blocked pages and re-import member-only content via the Raycast browser extension
 - **Smart URL Detection** - Automatically detects URLs from arguments, clipboard, selection, or active browser tab
 
 
@@ -124,26 +124,49 @@ Each prompt config includes:
 | **People, Places & Things** | Key entities extracted with context |
 
 
-## Handling Blocked Pages
+## Browser Extension Integration
+
+Reader Mode integrates with the [Raycast browser extension](https://www.raycast.com/browser-extension) to handle blocked pages and access authenticated content.
+
+### Handling Blocked Pages
 
 Some websites (like Politico, Bloomberg, etc.) use bot detection that prevents direct content fetching. When this happens, Reader Mode automatically offers a browser extension fallback:
 
-### How It Works
+**How It Works:**
 
 1. **Detection** - When a 403 "Access Denied" error occurs, Reader Mode checks if you have the Raycast browser extension installed
 2. **Instructions** - Shows a friendly message with clear steps to access the content
 3. **Browser Fallback** - You can open the page in your browser and fetch content via the extension
 
-### Usage
-
-When you encounter a blocked page:
+**Usage:**
 
 1. Press **Enter** to open the URL in your browser
 2. Wait for the page to fully load
 3. Press **⌘ + R** to fetch the content via the Raycast browser extension
 4. The article loads normally with full content
 
-**Note:** Requires the [Raycast browser extension](https://www.raycast.com/browser-extension) to be installed.
+### Re-importing Member-Only Content
+
+For paywalled or member-only articles (like Medium member stories), you can re-import content from an authenticated browser session:
+
+**When to Use:**
+- Medium member-only articles
+- Paywalled content from news sites
+- Any article requiring authentication to view full content
+
+**How It Works:**
+
+1. Open the article in Reader Mode (you'll see a truncated or blocked version)
+2. Press **⌘ + ⇧ + R** to trigger "Import from Browser Tab"
+3. Reader Mode finds the matching browser tab using the article's canonical URL
+4. If the tab is inactive, you'll be prompted to focus it first
+5. Content is re-imported with your authenticated session, showing the full article
+
+**Requirements:**
+- [Raycast browser extension](https://www.raycast.com/browser-extension) must be installed
+- The article must be open in a browser tab
+- You must be logged in to the site in your browser
+- The browser tab must be active (focused) when importing
 
 
 ### Inspiration: Defuddle

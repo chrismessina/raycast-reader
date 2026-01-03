@@ -448,8 +448,7 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
   });
 
   // Resolve lazy-loaded images
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  document.querySelectorAll("img").forEach((img: any) => {
+  document.querySelectorAll("img").forEach((img) => {
     const currentSrc = img.getAttribute("src");
     const isPlaceholder =
       !currentSrc ||

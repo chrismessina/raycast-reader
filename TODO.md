@@ -185,6 +185,7 @@
   - **Open in Browser** — open original URL
   - **Copy URL** — copy source URL to clipboard
   - Add Action to get article from Browser (e.g. Import via Raycast Browser Extension)
+- [x] Reparse article from browser extension
 
 ### 4.3 Error Handling
 - [ ] Handle edge cases:
@@ -248,12 +249,17 @@
   - `data-srcset` for responsive images
 - [x] Integrate into HTML pre-processing pipeline
 
-### 5.4 Site-Specific Quirks (Priority 4)
-- [x] Create `src/utils/quirks.ts` with hostname-to-selector mappings
-- [x] Add quirks for common problematic sites:
+### 5.4 Site-Specific Configs (Priority 4)
+- [x] Create `src/utils/site-config.ts` with hostname-to-selector mappings
+- [x] Add configs for common problematic sites:
   - Wikipedia, Medium, Substack, etc.
-- [x] Integrate quirks lookup into content extraction
-- [ ] Review accuracy of quirks and adjust as needed
+- [x] Integrate configs lookup into content extraction
+- [ ] Review accuracy of configs and adjust as needed
+- [ ] Add site-specific extractors
+  - Medium
+  - Substack
+  - Wikipedia
+  - Twitter
 
 ### 5.5 Schema.org Detection (Priority 5)
 - [x] Detect `[itemprop="articleBody"]` elements
