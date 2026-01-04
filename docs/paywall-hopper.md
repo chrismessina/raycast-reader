@@ -211,6 +211,108 @@ class MediumExtractor extends BaseExtractor {
 }
 ```
 
+### Soft Paywall Detection (200 OK with Preview Content)
+
+Some sites like **NYTimes** return HTTP 200 OK but serve truncated/preview content with paywall messaging embedded in the article body. This requires **post-parse text analysis** since the HTTP response looks successful.
+
+#### How It Works
+
+1. After successful fetch and parse, check if the site is in `isKnownPaywalledSite()` list
+2. Scan the parsed `textContent` for paywall keyword patterns
+3. If detected, trigger Paywall Hopper bypass methods
+4. Compare bypassed content length to original (require **20% improvement** to use)
+5. Fall back to original content if bypass doesn't improve
+
+#### Implementation
+
+The detection happens in `src/utils/paywall-detector.ts`:
+
+```typescript
+import { PAYWALL_KEYWORDS, isKnownPaywalledSite } from "../extractors/_paywall";
+
+export function detectPaywallInText(textContent: string, url: string): PaywallTextDetectionResult {
+  // Only check known paywalled sites to avoid false positives
+  if (!isKnownPaywalledSite(url)) {
+    return { isPaywalled: false, url };
+  }
+
+  // Check for paywall keywords in the content
+  for (const pattern of PAYWALL_KEYWORDS) {
+    if (pattern.test(textContent)) {
+      return { isPaywalled: true, matchedPattern: pattern.source, url };
+    }
+  }
+
+  return { isPaywalled: false, url };
+}
+```
+
+#### Adding a New Site with Soft Paywall
+
+To add detection for a new site that uses this pattern:
+
+**Step 1:** Add the domain to `isKnownPaywalledSite()` in `src/extractors/_paywall.ts`:
+
+```typescript
+const knownPaywalledDomains = [
+  "wsj.com",
+  "nytimes.com",
+  "washingtonpost.com",
+  // Add your new site here:
+  "example.com",
+];
+```
+
+**Step 2:** Add site-specific text patterns to `PAYWALL_KEYWORDS` in `src/extractors/_paywall.ts`:
+
+```typescript
+export const PAYWALL_KEYWORDS: RegExp[] = [
+  // Generic patterns (work across many sites)
+  /subscribe now/i,
+  /already a (?:subscriber|member)\?/i,
+  /you(?:'ve| have) (?:reached|used) your (?:free )?(?:article|story) limit/i,
+  
+  // NYTimes-specific patterns
+  /you have a preview view of this article/i,
+  /thank you for your patience while we verify access/i,
+  
+  // Add your new site's patterns here:
+  /your site's specific paywall message/i,
+];
+```
+
+**Step 3:** (Optional) Add DOM selectors if the site also has paywall overlay elements:
+
+```typescript
+export const SITE_PAYWALL_SELECTORS: Record<string, string[]> = {
+  "example.com": [
+    '[class*="paywall"]',
+    '.subscription-required',
+  ],
+};
+```
+
+#### Example: NYTimes Soft Paywall
+
+NYTimes serves preview content with these markers:
+
+```text
+You have a preview view of this article while we are checking your access.
+...
+Thank you for your patience while we verify access.
+Already a subscriber? Log in.
+Want all of The Times? Subscribe.
+```
+
+The patterns added to detect this:
+
+```typescript
+/you have a preview view of this article/i,
+/thank you for your patience while we verify access/i,
+/please exit and log into your Times account/i,
+/want all of The Times\? Subscribe/i,
+```
+
 ---
 
 ## Archive Service Integration

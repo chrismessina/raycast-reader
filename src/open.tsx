@@ -1,16 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  Detail,
-  LaunchProps,
-  environment,
-  AI,
-  getPreferenceValues,
-  showToast,
-  Toast,
-  ActionPanel,
-  Action,
-  Icon,
-} from "@raycast/api";
+import { Detail, LaunchProps, environment, AI, getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { useAI } from "@raycast/utils";
 import { urlLog } from "./utils/logger";
 import {
@@ -31,6 +20,7 @@ import { BlockedPageView } from "./views/BlockedPageView";
 import { NotReadableView } from "./views/NotReadableView";
 import { EmptyContentView } from "./views/EmptyContentView";
 import { ArticleDetailView } from "./views/ArticleDetailView";
+import { InactiveTabActions } from "./actions/InactiveTabActions";
 
 type ReaderArguments = {
   url: string;
@@ -56,6 +46,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
   // Not-readable page state
   const [notReadableUrl, setNotReadableUrl] = useState<string | null>(null);
+
+  // Empty content page state
+  const [emptyContentUrl, setEmptyContentUrl] = useState<string | null>(null);
 
   // Browser extension state
   const [hasBrowserExtensionAvailable, setHasBrowserExtensionAvailable] = useState(false);
@@ -162,12 +155,29 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   );
 
   // Process article loading result
-  const handleLoadResult = useCallback((result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
+  const handleLoadResult = useCallback(async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
     if (result.status === "success") {
       setArticle(result.article);
       setBlockedUrl(null);
       setNotReadableUrl(null);
+      setEmptyContentUrl(null);
       setError(null);
+
+      // Show toast when article was retrieved via Paywall Hopper
+      if (result.article.archiveSource) {
+        const sourceLabels: Record<string, string> = {
+          googlebot: "Googlebot bypass",
+          "archive.is": "archive.is",
+          wayback: "Wayback Machine",
+          browser: "browser tab",
+        };
+        const label = sourceLabels[result.article.archiveSource.service] || result.article.archiveSource.service;
+        await showToast({
+          style: Toast.Style.Success,
+          title: "Paywall bypassed",
+          message: `Retrieved via ${label}`,
+        });
+      }
     } else if (result.status === "blocked") {
       setBlockedUrl(result.url);
       setHasBrowserExtension(result.hasBrowserExtension);
@@ -175,6 +185,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       setError(result.error);
     } else if (result.status === "not-readable") {
       setNotReadableUrl(result.url);
+      setError(result.error);
+    } else if (result.status === "empty-content") {
+      setEmptyContentUrl(result.url);
       setError(result.error);
     } else {
       setError(result.error);
@@ -203,12 +216,14 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
       const result = await loadArticleFromUrl(urlResult.url, urlResult.source, {
         skipPreCheck: preferences.skipPreCheck,
+        enablePaywallHopper: preferences.enablePaywallHopper,
+        showArticleImage: preferences.showArticleImage,
       });
       handleLoadResult(result);
     }
 
     loadArticle();
-  }, [props.arguments.url, preferences.skipPreCheck, handleLoadResult]);
+  }, [props.arguments.url, preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult]);
 
   // Auto-trigger summary generation when article loads (if enabled)
   // Don't generate summary for articles that bypassed readability check
@@ -288,7 +303,8 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       setSummaryInitialized(false);
       urlLog.log("reimport:retry-success", { url: reimportInactiveTab.url });
     } else if (result.status === "tab_inactive") {
-      // Still inactive
+      // Still inactive - update tab info and show error in the prompt
+      setReimportInactiveTab({ url: reimportInactiveTab.url, tab: result.tab });
       setError("Tab is still not focused. Please click on the tab in your browser to activate it.");
     } else if (result.status === "no_matching_tab") {
       setReimportInactiveTab(null);
@@ -312,9 +328,11 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
     const result = await loadArticleFromUrl(notReadableUrl, "retry", {
       skipPreCheck: true,
+      enablePaywallHopper: preferences.enablePaywallHopper,
+      showArticleImage: preferences.showArticleImage,
     });
     handleLoadResult(result);
-  }, [notReadableUrl, handleLoadResult]);
+  }, [notReadableUrl, handleLoadResult, preferences.enablePaywallHopper, preferences.showArticleImage]);
 
   // Handler for URL form submission
   const handleUrlSubmit = useCallback(
@@ -335,10 +353,12 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
       const result = await loadArticleFromUrl(url, "form", {
         skipPreCheck: preferences.skipPreCheck,
+        enablePaywallHopper: preferences.enablePaywallHopper,
+        showArticleImage: preferences.showArticleImage,
       });
       handleLoadResult(result);
     },
-    [preferences.skipPreCheck, handleLoadResult],
+    [preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult],
   );
 
   // --- Render Logic ---
@@ -361,6 +381,10 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     return <NotReadableView url={notReadableUrl} error={error} onRetryWithoutCheck={handleRetryWithoutCheck} />;
   }
 
+  if (emptyContentUrl) {
+    return <EmptyContentView url={emptyContentUrl} />;
+  }
+
   if (blockedUrl && error) {
     return (
       <BlockedPageView
@@ -373,23 +397,31 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     );
   }
 
-  if (error || !article) {
-    return <Detail markdown={`# Error\n\n${error || "Unable to load article"}`} />;
-  }
-
   // Show inactive tab prompt when reimport found a tab but it's not focused
+  // This must come BEFORE the generic error check so retry failures don't dead-end
   if (reimportInactiveTab) {
+    const tabTitle = reimportInactiveTab.tab.title || "the article";
+    const errorMessage = error
+      ? `\n\n**Note:** ${error}`
+      : "";
+    const instructions = `# Focus Browser Tab\n\nThe article is open in a browser tab, but the tab is not currently focused.\n\nPlease click on the tab titled **"${tabTitle}"** in your browser to activate it, then try again.\n\n**Tip:** If you have multiple browser windows, make sure the window containing the tab is also in the foreground.${errorMessage}`;
+
     return (
       <Detail
-        markdown={`# Focus Browser Tab\n\nThe article is open in a browser tab, but the tab is not currently focused.\n\nPlease click on the tab titled **"${reimportInactiveTab.tab.title || "Unknown"}"** in your browser to activate it, then try again.`}
+        markdown={instructions}
         actions={
-          <ActionPanel>
-            <Action title="Try Again" icon={Icon.ArrowClockwise} onAction={handleRetryReimport} />
-            <Action title="Cancel" icon={Icon.XMarkCircle} onAction={() => setReimportInactiveTab(null)} />
-          </ActionPanel>
+          <InactiveTabActions
+            url={reimportInactiveTab.url}
+            onRetry={handleRetryReimport}
+            onCancel={() => setReimportInactiveTab(null)}
+          />
         }
       />
     );
+  }
+
+  if (error || !article) {
+    return <Detail markdown={`# Error\n\n${error || "Unable to load article"}`} />;
   }
 
   // Check if article has minimal or no content

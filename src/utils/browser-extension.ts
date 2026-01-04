@@ -141,6 +141,10 @@ export type ReimportResult =
  * Reimport article content from browser tab.
  * Validates that the tab URL matches the target URL (including canonical URL check).
  * Returns tab_inactive status if tab exists but is not focused (browser may have unloaded it).
+ *
+ * Window priority: The browser extension API marks tabs as "active" per-window, meaning
+ * multiple tabs can be "active" if multiple windows are open. We prioritize the focused
+ * window by first checking if the focused window's active tab matches the URL.
  */
 export async function reimportFromBrowserTab(targetUrl: string): Promise<ReimportResult> {
   const tabs = await getBrowserTabs();
@@ -149,20 +153,65 @@ export async function reimportFromBrowserTab(targetUrl: string): Promise<Reimpor
     return { status: "no_matching_tab" };
   }
 
-  // First, try direct URL match
   const normalizedTarget = normalizeUrl(targetUrl);
-  let matchingTab = tabs.find((tab) => normalizeUrl(tab.url) === normalizedTarget);
 
-  // If no direct match, we'll need to check canonical URLs by fetching HTML from active tab
+  // Step 1: Check the focused window's active tab first
+  // getContent without tabId returns from the focused window's active tab
+  // We use this to identify which "active" tab is in the actually focused window
+  let focusedWindowTabId: number | null = null;
+  try {
+    // Get all active tabs (one per window)
+    const activeTabs = tabs.filter((tab) => tab.active);
+
+    if (activeTabs.length > 1) {
+      // Multiple windows open - need to determine which is focused
+      // Fetch content without tabId to get the focused window's active tab URL
+      const focusedContent = await BrowserExtension.getContent({ format: "html" });
+      if (focusedContent) {
+        // Check if the focused tab matches our target URL (including canonical)
+        for (const activeTab of activeTabs) {
+          // Try to match by checking if this tab's content matches what we got
+          const tabContent = await BrowserExtension.getContent({ format: "html", tabId: activeTab.id });
+          if (tabContent === focusedContent) {
+            focusedWindowTabId = activeTab.id;
+            urlLog.log("reimport:focused-window-identified", { tabId: activeTab.id, tabUrl: activeTab.url });
+            break;
+          }
+        }
+      }
+    } else if (activeTabs.length === 1) {
+      focusedWindowTabId = activeTabs[0].id;
+    }
+  } catch {
+    // Ignore errors in focused window detection
+  }
+
+  // Step 2: Find matching tabs, prioritizing the focused window
+  let matchingTab: BrowserTab | undefined;
+
+  // First, check if the focused window's active tab matches
+  if (focusedWindowTabId) {
+    const focusedTab = tabs.find((tab) => tab.id === focusedWindowTabId);
+    if (focusedTab && normalizeUrl(focusedTab.url) === normalizedTarget) {
+      matchingTab = focusedTab;
+      urlLog.log("reimport:matched-focused-window", { targetUrl, tabId: focusedTab.id });
+    }
+  }
+
+  // If no match in focused window, check all tabs
   if (!matchingTab) {
-    // Only check active tab for canonical URL match (inactive tabs may timeout)
-    const activeTab = tabs.find((tab) => tab.active);
-    if (activeTab) {
+    matchingTab = tabs.find((tab) => normalizeUrl(tab.url) === normalizedTarget);
+  }
+
+  // If still no direct match, check canonical URLs from the focused window's active tab
+  if (!matchingTab && focusedWindowTabId) {
+    const focusedTab = tabs.find((tab) => tab.id === focusedWindowTabId);
+    if (focusedTab) {
       try {
-        const html = await BrowserExtension.getContent({ format: "html", tabId: activeTab.id });
-        if (html && urlsMatch(targetUrl, activeTab.url, html)) {
-          matchingTab = activeTab;
-          urlLog.log("reimport:canonical-match-found", { targetUrl, tabUrl: activeTab.url });
+        const html = await BrowserExtension.getContent({ format: "html", tabId: focusedTab.id });
+        if (html && urlsMatch(targetUrl, focusedTab.url, html)) {
+          matchingTab = focusedTab;
+          urlLog.log("reimport:canonical-match-found", { targetUrl, tabUrl: focusedTab.url });
         }
       } catch {
         // Ignore errors fetching HTML for canonical check
@@ -175,19 +224,21 @@ export async function reimportFromBrowserTab(targetUrl: string): Promise<Reimpor
     return { status: "no_matching_tab" };
   }
 
+  const isInFocusedWindow = matchingTab.id === focusedWindowTabId;
   urlLog.log("reimport:found-tab", {
     targetUrl,
     tabId: matchingTab.id,
     tabUrl: matchingTab.url,
     isActive: matchingTab.active,
+    isInFocusedWindow,
   });
 
-  // If tab is not active, return status so UI can prompt user to focus it
-  if (!matchingTab.active) {
+  // If tab is not active OR not in the focused window, return status so UI can prompt user
+  if (!matchingTab.active || !isInFocusedWindow) {
     return { status: "tab_inactive", tab: matchingTab };
   }
 
-  // Tab is active, fetch content
+  // Tab is active and in focused window, fetch content
   const result = await getContentFromTab(targetUrl, matchingTab.id);
   if (result.success) {
     urlLog.log("reimport:success", { targetUrl, source: "browser-tab" });
@@ -197,11 +248,16 @@ export async function reimportFromBrowserTab(targetUrl: string): Promise<Reimpor
   return { status: "error", error: result.error };
 }
 
+interface GetContentOptions {
+  /** Whether to show the article image at the top (default: true) */
+  showArticleImage?: boolean;
+}
+
 /**
  * Get content from a specific tab by ID, or active tab if no ID provided.
  * Parses the HTML with Readability and converts to Markdown.
  */
-export async function getContentFromTab(url: string, tabId?: number): Promise<BrowserContentResult> {
+export async function getContentFromTab(url: string, tabId?: number, options?: GetContentOptions): Promise<BrowserContentResult> {
   urlLog.log("fetch:extension:start", { url, tabId });
 
   const startTime = Date.now();
@@ -247,7 +303,7 @@ export async function getContentFromTab(url: string, tabId?: number): Promise<Br
 
     // Convert to Markdown
     const formatted = formatArticle(parseResult.article.title, parseResult.article.content, {
-      image: parseResult.article.image,
+      image: options?.showArticleImage !== false ? parseResult.article.image : null,
     });
 
     return {

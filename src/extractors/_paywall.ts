@@ -50,6 +50,11 @@ export const PAYWALL_KEYWORDS: RegExp[] = [
   /you(?:'ve| have) (?:reached|used) your (?:free )?(?:article|story) limit/i,
   /(?:free )?articles? remaining/i,
   /this (?:article|story|content) is (?:for|available to) (?:subscribers|members|premium)/i,
+  // NYTimes-specific patterns (serves 200 OK with preview content)
+  /you have a preview view of this article/i,
+  /thank you for your patience while we verify access/i,
+  /please exit and log into your Times account/i,
+  /want all of The Times\? Subscribe/i,
 ];
 
 export const PAYWALL_SELECTORS: string[] = [

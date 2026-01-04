@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
 import { parseLog } from "./logger";
-import { getSiteConfig } from "./site-config";
+import { getSiteConfig } from "../config/site-config";
 
 /**
  * Selectors for elements that should be removed before Readability processing.
@@ -313,6 +313,34 @@ export function preCleanHtml(html: string, url: string): CleaningResult {
           document.querySelectorAll(selector).forEach((el: any) => {
             el.remove();
             removedCount++;
+          });
+        });
+      }
+
+      // Remove elements by text content patterns
+      if (config.removeTextPatterns) {
+        config.removeTextPatterns.forEach(({ selector, pattern }) => {
+          const regex = new RegExp(pattern, "i");
+          document.querySelectorAll(selector).forEach((el) => {
+            const text = el.textContent?.trim() || "";
+            if (regex.test(text)) {
+              el.remove();
+              removedCount++;
+            }
+          });
+        });
+      }
+
+      // Convert block elements to inline (div -> span) for better markdown rendering
+      if (config.inlineSelectors) {
+        config.inlineSelectors.forEach((selector) => {
+          document.querySelectorAll(selector).forEach((el) => {
+            const span = document.createElement("span");
+            span.innerHTML = el.innerHTML;
+            // Copy over any class attributes
+            const className = el.getAttribute("class");
+            if (className) span.setAttribute("class", className);
+            el.replaceWith(span);
           });
         });
       }

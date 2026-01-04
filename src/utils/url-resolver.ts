@@ -15,6 +15,25 @@ export function isValidUrl(text: string): boolean {
 }
 
 /**
+ * Extracts the first valid URL from text
+ */
+function extractUrlFromText(text: string): string | null {
+  const urlPattern = /https?:\/\/[^\s]+/gi;
+  const matches = text.match(urlPattern);
+  
+  if (!matches) return null;
+  
+  for (const match of matches) {
+    const cleaned = match.replace(/[.,;!?)]+$/, '');
+    if (isValidUrl(cleaned)) {
+      return cleaned;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Resolves URL from multiple sources in priority order:
  * 1. Command argument
  * 2. Selected text (if valid URL)
@@ -31,6 +50,13 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
       urlLog.log("resolve:success", { source: "argument", url: trimmed });
       return { url: trimmed, source: "argument" };
     }
+    
+    const extracted = extractUrlFromText(trimmed);
+    if (extracted) {
+      urlLog.log("resolve:success", { source: "argument", url: extracted, extracted: true });
+      return { url: extracted, source: "argument" };
+    }
+    
     urlLog.warn("resolve:invalid", { source: "argument", value: trimmed });
     return null;
   }
@@ -39,9 +65,18 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
   try {
     urlLog.log("resolve:try", { source: "selected text" });
     const selectedText = await getSelectedText();
-    if (selectedText && isValidUrl(selectedText.trim())) {
-      urlLog.log("resolve:success", { source: "selected text", url: selectedText.trim() });
-      return { url: selectedText.trim(), source: "selected text" };
+    if (selectedText) {
+      const trimmed = selectedText.trim();
+      if (isValidUrl(trimmed)) {
+        urlLog.log("resolve:success", { source: "selected text", url: trimmed });
+        return { url: trimmed, source: "selected text" };
+      }
+      
+      const extracted = extractUrlFromText(trimmed);
+      if (extracted) {
+        urlLog.log("resolve:success", { source: "selected text", url: extracted, extracted: true });
+        return { url: extracted, source: "selected text" };
+      }
     }
     urlLog.log("resolve:skip", { source: "selected text", reason: "not a valid URL" });
   } catch {
@@ -52,9 +87,18 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
   try {
     urlLog.log("resolve:try", { source: "clipboard" });
     const clipboardText = await Clipboard.readText();
-    if (clipboardText && isValidUrl(clipboardText.trim())) {
-      urlLog.log("resolve:success", { source: "clipboard", url: clipboardText.trim() });
-      return { url: clipboardText.trim(), source: "clipboard" };
+    if (clipboardText) {
+      const trimmed = clipboardText.trim();
+      if (isValidUrl(trimmed)) {
+        urlLog.log("resolve:success", { source: "clipboard", url: trimmed });
+        return { url: trimmed, source: "clipboard" };
+      }
+      
+      const extracted = extractUrlFromText(trimmed);
+      if (extracted) {
+        urlLog.log("resolve:success", { source: "clipboard", url: extracted, extracted: true });
+        return { url: extracted, source: "clipboard" };
+      }
     }
     urlLog.log("resolve:skip", { source: "clipboard", reason: "not a valid URL" });
   } catch {

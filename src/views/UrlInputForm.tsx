@@ -53,7 +53,8 @@ export function UrlInputForm({ initialUrl, invalidInput, onSubmit }: UrlInputFor
 
   const getDescription = () => {
     if (invalidInput) {
-      return `There doesn't seem to be a valid link in your input "${invalidInput}". Enter a valid URL and hit return.`;
+      const truncated = invalidInput.length > 100 ? `${invalidInput.slice(0, 100)}...` : invalidInput;
+      return `Couldn't find a valid link in your input "${truncated}".\n\nEnter a valid URL and hit return.`;
     }
     return "No URL was found in your clipboard, selection, or browser. Please enter a URL to read.";
   };

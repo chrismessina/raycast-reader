@@ -32,6 +32,21 @@ export interface SiteConfig {
   removeSelectors?: string[];
 
   /**
+   * Array of text patterns to match for element removal.
+   * Elements (buttons, spans, divs) containing text matching these patterns will be removed.
+   * Useful for removing elements that can't be targeted by CSS selectors.
+   * Each entry is: { selector: CSS selector to search within, pattern: regex pattern to match text }
+   */
+  removeTextPatterns?: Array<{ selector: string; pattern: string }>;
+
+  /**
+   * Array of selectors for elements to convert from block to inline (div -> span).
+   * Useful for fixing sites that use divs for inline content like dates,
+   * which causes unwanted line breaks in markdown.
+   */
+  inlineSelectors?: string[];
+
+  /**
    * If true, prefer Schema.org metadata over other sources.
    * Useful for sites with rich structured data.
    */
@@ -156,6 +171,22 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         ".newsletter-signup",
         '[data-testid="inline-message"]',
         ".story-footer",
+        // Lightbox/modal spans that leak "Open modal at item X of Y" accessibility text
+        ".kyt-wljQC",
+        // Print edition metadata div
+        ".css-lojhqv",
+        // Related content/recirculation (use ID selector - more reliable than data-testid)
+        "#bottom-sheet-sensor",
+        // "See more on" links
+        ".css-b9twaf",
+        // Correction policy boilerplate
+        ".css-1j12tm1",
+        ".css-s2htvn",
+      ],
+      // Convert block elements to inline for better markdown rendering
+      inlineSelectors: [
+        // Correction date div (e.g., "Dec. 29, 2025") should be inline with "A correction was made on"
+        ".css-dzvz0g",
       ],
     },
   ],
@@ -225,13 +256,41 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
+  // Reuters
+  [
+    /^(.*\.)?reuters\.com$/i,
+    {
+      name: "Reuters",
+      articleSelector: '[data-testid="Article"]',
+      removeSelectors: [
+        ".ad",
+        ".newsletter-subscribe-form",
+        ".related-content",
+        ".article-body-module__trust-badge__5mS3f",
+        '[data-testid="promo-box"]',
+        '[data-testid="Tags"]',
+        '[data-testid="ContextWidget"]',
+        '[data-testid="AuthorBio"]',
+        '[data-testid="NewTabSymbol"]',
+        '[data-testid="Link"] > span[style*="clip"]',
+      ],
+    },
+  ],
+
   // TechCrunch
   [
     /^(.*\.)?techcrunch\.com$/i,
     {
       name: "TechCrunch",
       articleSelector: ".entry-content",
-      removeSelectors: [".embed-tc-newsletter", ".related-posts", ".ad-unit", ".wp-block-techcrunch-inline-cta"],
+      removeSelectors: [
+        ".embed-tc-newsletter",
+        ".related-posts",
+        ".ad-unit",
+        ".wp-block-techcrunch-inline-cta",
+        '[data-ctatext="View Bio"]',
+        ".wp-block-image__credits", // Remove "Image Credits:" spans from figcaptions
+      ],
     },
   ],
 

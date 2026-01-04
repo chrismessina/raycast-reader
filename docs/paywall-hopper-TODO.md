@@ -60,12 +60,27 @@
 - [x] The Atlantic selectors added to `SITE_PAYWALL_SELECTORS`
 - [x] Known paywalled domains list in `isKnownPaywalledSite()`
 
-### 2.2 Future Site Additions (as needed)
+### 2.2 Soft Paywall Detection (200 OK with preview content)
+
+> Sites like NYTimes return HTTP 200 but serve truncated/preview content with paywall messaging.
+> This requires post-parse text analysis to detect.
+
+- [x] Add NYTimes-specific text patterns to `PAYWALL_KEYWORDS`:
+  - "You have a preview view of this article"
+  - "Thank you for your patience while we verify access"
+  - "Please exit and log into your Times account"
+  - "Want all of The Times? Subscribe"
+- [x] Create `src/utils/paywall-detector.ts` with `detectPaywallInText()` function
+- [x] Integrate soft paywall detection in `article-loader.ts` (Step 2.5)
+- [x] Only trigger for known paywalled sites to avoid false positives
+- [x] Compare bypassed content length to original (require 20% improvement)
+
+### 2.3 Future Site Additions (as needed)
 
 - [ ] Add more site-specific selectors as discovered
 - [ ] Refine existing selectors based on testing
 
-**Milestone:** Site-specific paywall detection for major paywalled sites.
+**Milestone:** Site-specific paywall detection for major paywalled sites, including soft paywalls.
 
 ---
 
@@ -185,43 +200,26 @@
 
 ### 7.1 Preferences
 
-- [ ] Add `enablePaywallHopper` preference to `package.json`:
-
-  ```json
-  {
-    "name": "enablePaywallHopper",
-    "title": "Paywall Hopper",
-    "description": "Try to retrieve full content when articles are paywalled.",
-    "type": "checkbox",
-    "label": "Enable",
-    "default": true,
-    "required": false
-  }
-  ```
-
-- [ ] Read preference in `src/open.tsx`
+- [x] Add `enablePaywallHopper` preference to `package.json`
+- [x] Read preference in `src/open.tsx`
+- [x] Pass `enablePaywallHopper` to all `loadArticleFromUrl()` calls
 
 ### 7.2 Paywall Detection UI
 
-- [ ] Create new UI state for paywall detection in `src/open.tsx`
-- [ ] Show options when paywall detected:
-  - "Import from Browser Tab" (if tab found)
-  - "Open in Browser & Import"
-  - "Try Paywall Hopper"
+- [x] Paywall Hopper runs automatically on 403 blocked pages (when enabled)
+- [x] Falls back to BlockedPageView only after all bypass methods fail
+- [ ] *(Future)* Show manual "Try Paywall Hopper" option in BlockedPageView
 
 ### 7.3 Actions
 
-- [ ] Add "Copy URL to Archived Copy" action (when `archiveSource` present)
-- [ ] Add "Try Paywall Hopper" manual action
-- [ ] Update action panel organization
+- [x] Add "Copy Archived URL" action (when `archiveSource.url` present)
+- [ ] *(Future)* Add "Try Paywall Hopper" manual action for retries
 
 ### 7.4 Toast Notifications
 
-- [ ] Show toast when Googlebot bypass succeeds
-- [ ] Show toast when archive service bypass succeeds
-- [ ] Show toast when paywall detected (with options)
+- [x] Show toast when bypass succeeds (displays source: Googlebot/archive.is/Wayback)
 
-**Milestone:** Full UI integration complete.
+**Milestone:** Core UI integration complete.
 
 ---
 

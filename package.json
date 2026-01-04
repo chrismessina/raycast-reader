@@ -45,7 +45,7 @@
     {
       "name": "defaultSummaryStyle",
       "title": "Summary Style",
-      "description": "The default style for summaries.",
+      "description": "Default style for summaries.",
       "type": "dropdown",
       "default": "overview",
       "required": false,
@@ -60,7 +60,7 @@
     },
     {
       "name": "translationLanguage",
-      "title": "Translation Overview Language",
+      "title": "Translated Overview Language",
       "description": "Default language for translated summaries.",
       "type": "dropdown",
       "default": "es",
@@ -87,6 +87,24 @@
         { "title": "Greek", "value": "el" },
         { "title": "Hebrew", "value": "he" }
       ]
+    },
+    {
+      "name": "showArticleImage",
+      "title": "Article Image",
+      "description": "Display the article's featured image at the top of the reader view.",
+      "type": "checkbox",
+      "label": "Show",
+      "default": true,
+      "required": false
+    },
+    {
+      "name": "enablePaywallHopper",
+      "title": "Paywall Hopper",
+      "description": "Try to retrieve paywalled or member-only content from archive services.",
+      "type": "checkbox",
+      "label": "Enable",
+      "default": true,
+      "required": false
     },
     {
       "name": "skipPreCheck",

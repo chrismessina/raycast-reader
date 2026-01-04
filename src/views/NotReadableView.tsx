@@ -8,7 +8,7 @@ interface NotReadableViewProps {
 }
 
 function buildNotReadableMarkdown(error: string): string {
-  return `# Content Not Readable
+  return `# Sorry, we couldn't find any readable content 🤷🏻‍♂️
 
 ${error}
 

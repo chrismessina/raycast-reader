@@ -87,6 +87,7 @@ export function ArticleDetailView({
           canAccessAI={canAccessAI}
           onSummarize={onSummarize}
           onReimportFromBrowser={onReimportFromBrowser}
+          archiveSource={article.archiveSource}
         />
       }
     />

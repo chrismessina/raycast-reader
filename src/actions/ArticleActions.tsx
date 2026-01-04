@@ -1,5 +1,6 @@
 import { ActionPanel, Action, Icon, Keyboard } from "@raycast/api";
 import { SummaryStyle } from "../types/summary";
+import { ArchiveSource } from "../utils/paywall-hopper";
 import { getStyleLabel } from "../utils/summarizer";
 
 export const SUMMARY_STYLES: { style: SummaryStyle; icon: Icon }[] = [
@@ -18,6 +19,7 @@ interface ArticleActionsProps {
   canAccessAI: boolean;
   onSummarize: (style: SummaryStyle) => void;
   onReimportFromBrowser?: () => void;
+  archiveSource?: ArchiveSource;
 }
 
 export function ArticleActions({
@@ -27,6 +29,7 @@ export function ArticleActions({
   canAccessAI,
   onSummarize,
   onReimportFromBrowser,
+  archiveSource,
 }: ArticleActionsProps) {
   return (
     <ActionPanel>
@@ -55,6 +58,14 @@ export function ArticleActions({
         content={articleUrl}
         shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
       />
+      {archiveSource?.url && (
+        <Action.CopyToClipboard
+          title="Copy Archived URL"
+          content={archiveSource.url}
+          icon={Icon.Clock}
+          shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}
+        />
+      )}
       {onReimportFromBrowser && (
         <Action
           title="Import from Browser Tab"

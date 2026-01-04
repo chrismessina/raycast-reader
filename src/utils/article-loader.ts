@@ -4,6 +4,7 @@ import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
 import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
 import { tryBypassPaywall, createArchiveSource, ArchiveSource } from "./paywall-hopper";
+import { detectPaywallInText } from "./paywall-detector";
 import { BrowserTab } from "../types/browser";
 import { ArticleState } from "../types/article";
 
@@ -11,6 +12,7 @@ export type LoadArticleResult =
   | { status: "success"; article: ArticleState }
   | { status: "blocked"; url: string; hasBrowserExtension: boolean; foundTab: BrowserTab | null; error: string }
   | { status: "not-readable"; url: string; error: string }
+  | { status: "empty-content"; url: string; error: string }
   | { status: "error"; error: string };
 
 interface LoadArticleOptions {
@@ -18,6 +20,8 @@ interface LoadArticleOptions {
   forceParse?: boolean;
   /** Whether Paywall Hopper is enabled (tries bypass methods on blocked pages) */
   enablePaywallHopper?: boolean;
+  /** Whether to show the article image at the top (default: true) */
+  showArticleImage?: boolean;
 }
 
 /**
@@ -70,7 +74,7 @@ export async function loadArticleFromUrl(
 
             // Format and return the article with archive annotation
             const formatted = formatArticle(bypassParseResult.article.title, bypassParseResult.article.content, {
-              image: bypassParseResult.article.image,
+              image: options.showArticleImage !== false ? bypassParseResult.article.image : null,
               archiveSource: archiveSource
                 ? {
                     service: archiveSource.service,
@@ -164,14 +168,103 @@ export async function loadArticleFromUrl(
     if (parseResult.error.type === "not-readable") {
       return { status: "not-readable", url, error: parseResult.error.message };
     }
+    if (parseResult.error.type === "empty-content" || parseResult.error.type === "parse-failed") {
+      return { status: "empty-content", url, error: parseResult.error.message };
+    }
     return { status: "error", error: parseResult.error.message };
   }
   urlLog.log("parse:success", { url, contentLength: parseResult.article.content.length });
 
+  // Step 2.5: Check for soft paywall (200 OK but truncated/preview content)
+  // Sites like NYTimes return 200 but serve preview content with paywall markers
+  if (options.enablePaywallHopper) {
+    const paywallCheck = detectPaywallInText(parseResult.article.textContent, url);
+
+    if (paywallCheck.isPaywalled) {
+      paywallLog.log("hopper:soft-paywall-detected", {
+        url,
+        pattern: paywallCheck.matchedPattern,
+        originalContentLength: parseResult.article.textContent.length,
+      });
+
+      // Try to get full content via Paywall Hopper
+      const hopperResult = await tryBypassPaywall(url);
+
+      if (hopperResult.success && hopperResult.html) {
+        // Parse the bypassed content
+        const bypassParseResult = parseArticle(hopperResult.html, url, {
+          skipPreCheck: true,
+          forceParse: true,
+        });
+
+        if (bypassParseResult.success) {
+          // Verify the bypassed content is actually better (longer)
+          const bypassedLength = bypassParseResult.article.textContent.length;
+          const originalLength = parseResult.article.textContent.length;
+
+          if (bypassedLength > originalLength * 1.2) {
+            // At least 20% more content
+            paywallLog.log("hopper:soft-paywall-bypassed", {
+              url,
+              source: hopperResult.source,
+              originalLength,
+              bypassedLength,
+              improvement: `${Math.round((bypassedLength / originalLength - 1) * 100)}%`,
+            });
+
+            const archiveSource = createArchiveSource(hopperResult);
+
+            const formatted = formatArticle(bypassParseResult.article.title, bypassParseResult.article.content, {
+              image: options.showArticleImage !== false ? bypassParseResult.article.image : null,
+              archiveSource: archiveSource
+                ? {
+                    service: archiveSource.service,
+                    url: archiveSource.url,
+                    timestamp: archiveSource.timestamp,
+                  }
+                : undefined,
+            });
+
+            const article: ArticleState = {
+              bodyMarkdown: formatted.markdown,
+              title: bypassParseResult.article.title,
+              byline: bypassParseResult.article.byline,
+              siteName: bypassParseResult.article.siteName,
+              url,
+              source,
+              textContent: bypassParseResult.article.textContent,
+              bypassedReadabilityCheck: true,
+              archiveSource,
+            };
+
+            urlLog.log("session:ready", {
+              url,
+              title: formatted.title,
+              markdownLength: formatted.markdown.length,
+              bypassedCheck: true,
+              archiveSource: hopperResult.source,
+            });
+
+            return { status: "success", article };
+          } else {
+            paywallLog.log("hopper:soft-paywall-no-improvement", {
+              url,
+              source: hopperResult.source,
+              originalLength,
+              bypassedLength,
+            });
+          }
+        }
+      }
+      // If bypass failed or didn't improve, continue with original content
+      paywallLog.log("hopper:soft-paywall-fallback", { url });
+    }
+  }
+
   // Step 3: Convert to Markdown
   urlLog.log("markdown:start", { url, hasImage: !!parseResult.article.image, imageUrl: parseResult.article.image });
   const formatted = formatArticle(parseResult.article.title, parseResult.article.content, {
-    image: parseResult.article.image,
+    image: options.showArticleImage !== false ? parseResult.article.image : null,
   });
   urlLog.log("markdown:complete", { url, markdownLength: formatted.markdown.length });
 

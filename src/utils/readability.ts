@@ -4,7 +4,7 @@ import { parseLog } from "./logger";
 import { preCleanHtml } from "./html-cleaner";
 import { MetadataExtractor } from "./metadata-extractor";
 import { getExtractor } from "../extractors";
-import { getSiteConfig } from "./site-config";
+import { getSiteConfig } from "../config/site-config";
 
 export interface ArticleContent {
   title: string;
