@@ -198,12 +198,12 @@ function formatArchiveAnnotation(source: ArchiveAnnotation): string | null {
   const label = serviceLabels[source.service];
   if (!label) return null;
 
-  let annotation = `> 📦 **Archived Copy**`;
+  let annotation: string;
 
   if (source.url) {
-    annotation += ` — Retrieved from [${label}](${source.url})`;
+    annotation = `> 📦 [**Archived Copy**](${source.url}) — Retrieved from [${label}](${source.url})`;
   } else {
-    annotation += ` — Retrieved via ${label}`;
+    annotation = `> 📦 **Archived Copy** — Retrieved via ${label}`;
   }
 
   if (source.timestamp) {

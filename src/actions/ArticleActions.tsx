@@ -60,7 +60,7 @@ export function ArticleActions({
       />
       {archiveSource?.url && (
         <Action.CopyToClipboard
-          title="Copy Archived URL"
+          title="Copy Archived Copy URL"
           content={archiveSource.url}
           icon={Icon.Clock}
           shortcut={{ modifiers: ["cmd", "shift"], key: "a" }}

@@ -232,7 +232,10 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
       };
     }
 
-    const html = await contentResponse.text();
+    const rawHtml = await contentResponse.text();
+
+    // Rewrite Wayback URLs back to original URLs so images load from live site
+    const html = rewriteWaybackUrls(rawHtml);
 
     // Format timestamp for display (YYYYMMDDHHMMSS -> readable)
     const formattedTimestamp = formatWaybackTimestamp(timestamp);
@@ -242,6 +245,7 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
       archiveUrl: snapshotUrl,
       contentLength: html.length,
       timestamp: formattedTimestamp,
+      urlsRewritten: rawHtml.length !== html.length,
     });
 
     return {
@@ -288,4 +292,24 @@ function formatWaybackTimestamp(timestamp: string): string {
   } catch {
     return timestamp;
   }
+}
+
+/**
+ * Rewrite Wayback Machine URLs in HTML back to original URLs.
+ *
+ * Wayback rewrites all URLs to point to archived versions:
+ * - http://web.archive.org/web/20241009151945im_/https://example.com/image.jpg
+ * - http://web.archive.org/web/20241009151945/https://example.com/page
+ *
+ * This extracts the original URLs so images load from the live site
+ * (which usually still works) instead of the archive proxy (which often fails).
+ */
+export function rewriteWaybackUrls(html: string): string {
+  // Pattern matches Wayback URLs and captures the original URL
+  // Handles both http and https, and various Wayback modifiers (im_, js_, cs_, etc.)
+  const waybackUrlPattern = /https?:\/\/web\.archive\.org\/web\/\d+(?:im_|js_|cs_|if_|mp_|)?\/?((https?:\/\/[^"'\s<>]+))/g;
+
+  return html.replace(waybackUrlPattern, (_match, _fullUrl, originalUrl) => {
+    return originalUrl;
+  });
 }
