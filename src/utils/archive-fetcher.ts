@@ -307,7 +307,8 @@ function formatWaybackTimestamp(timestamp: string): string {
 export function rewriteWaybackUrls(html: string): string {
   // Pattern matches Wayback URLs and captures the original URL
   // Handles both http and https, and various Wayback modifiers (im_, js_, cs_, etc.)
-  const waybackUrlPattern = /https?:\/\/web\.archive\.org\/web\/\d+(?:im_|js_|cs_|if_|mp_|)?\/?((https?:\/\/[^"'\s<>]+))/g;
+  const waybackUrlPattern =
+    /https?:\/\/web\.archive\.org\/web\/\d+(?:im_|js_|cs_|if_|mp_|)?\/?((https?:\/\/[^"'\s<>]+))/g;
 
   return html.replace(waybackUrlPattern, (_match, _fullUrl, originalUrl) => {
     return originalUrl;

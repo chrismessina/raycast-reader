@@ -223,7 +223,13 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     }
 
     loadArticle();
-  }, [props.arguments.url, preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult]);
+  }, [
+    props.arguments.url,
+    preferences.skipPreCheck,
+    preferences.enablePaywallHopper,
+    preferences.showArticleImage,
+    handleLoadResult,
+  ]);
 
   // Auto-trigger summary generation when article loads (if enabled)
   // Don't generate summary for articles that bypassed readability check
@@ -401,9 +407,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   // This must come BEFORE the generic error check so retry failures don't dead-end
   if (reimportInactiveTab) {
     const tabTitle = reimportInactiveTab.tab.title || "the article";
-    const errorMessage = error
-      ? `\n\n**Note:** ${error}`
-      : "";
+    const errorMessage = error ? `\n\n**Note:** ${error}` : "";
     const instructions = `# Focus Browser Tab\n\nThe article is open in a browser tab, but the tab is not currently focused.\n\nPlease click on the tab titled **"${tabTitle}"** in your browser to activate it, then try again.\n\n**Tip:** If you have multiple browser windows, make sure the window containing the tab is also in the foreground.${errorMessage}`;
 
     return (

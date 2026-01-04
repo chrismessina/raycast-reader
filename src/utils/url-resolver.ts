@@ -20,16 +20,16 @@ export function isValidUrl(text: string): boolean {
 function extractUrlFromText(text: string): string | null {
   const urlPattern = /https?:\/\/[^\s]+/gi;
   const matches = text.match(urlPattern);
-  
+
   if (!matches) return null;
-  
+
   for (const match of matches) {
-    const cleaned = match.replace(/[.,;!?)]+$/, '');
+    const cleaned = match.replace(/[.,;!?)]+$/, "");
     if (isValidUrl(cleaned)) {
       return cleaned;
     }
   }
-  
+
   return null;
 }
 
@@ -50,13 +50,13 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
       urlLog.log("resolve:success", { source: "argument", url: trimmed });
       return { url: trimmed, source: "argument" };
     }
-    
+
     const extracted = extractUrlFromText(trimmed);
     if (extracted) {
       urlLog.log("resolve:success", { source: "argument", url: extracted, extracted: true });
       return { url: extracted, source: "argument" };
     }
-    
+
     urlLog.warn("resolve:invalid", { source: "argument", value: trimmed });
     return null;
   }
@@ -71,7 +71,7 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
         urlLog.log("resolve:success", { source: "selected text", url: trimmed });
         return { url: trimmed, source: "selected text" };
       }
-      
+
       const extracted = extractUrlFromText(trimmed);
       if (extracted) {
         urlLog.log("resolve:success", { source: "selected text", url: extracted, extracted: true });
@@ -93,7 +93,7 @@ export async function resolveUrl(argumentUrl?: string): Promise<{ url: string; s
         urlLog.log("resolve:success", { source: "clipboard", url: trimmed });
         return { url: trimmed, source: "clipboard" };
       }
-      
+
       const extracted = extractUrlFromText(trimmed);
       if (extracted) {
         urlLog.log("resolve:success", { source: "clipboard", url: extracted, extracted: true });

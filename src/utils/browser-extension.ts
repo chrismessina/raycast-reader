@@ -257,7 +257,11 @@ interface GetContentOptions {
  * Get content from a specific tab by ID, or active tab if no ID provided.
  * Parses the HTML with Readability and converts to Markdown.
  */
-export async function getContentFromTab(url: string, tabId?: number, options?: GetContentOptions): Promise<BrowserContentResult> {
+export async function getContentFromTab(
+  url: string,
+  tabId?: number,
+  options?: GetContentOptions,
+): Promise<BrowserContentResult> {
   urlLog.log("fetch:extension:start", { url, tabId });
 
   const startTime = Date.now();
