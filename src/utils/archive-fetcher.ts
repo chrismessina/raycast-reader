@@ -7,11 +7,17 @@
 
 import { paywallLog } from "./logger";
 
+/** Callback for status updates during archive fetching */
+export type ArchiveStatusCallback = (message: string) => void;
+
 /** Timeout for archive.is requests (can be slow) */
 export const ARCHIVE_IS_TIMEOUT_MS = 45000;
 
 /** Timeout for Wayback Machine requests */
 export const WAYBACK_TIMEOUT_MS = 30000;
+
+/** Timeout for RemovePaywall requests */
+export const REMOVEPAYWALL_TIMEOUT_MS = 30000;
 
 /**
  * Result from an archive fetch attempt
@@ -20,7 +26,7 @@ export interface ArchiveFetchResult {
   success: boolean;
   html?: string;
   archiveUrl?: string;
-  service: "archive.is" | "wayback";
+  service: "archive.is" | "wayback" | "removepaywall";
   timestamp?: string;
   error?: string;
 }
@@ -48,8 +54,12 @@ interface WaybackAvailabilityResponse {
  * @param url - The original URL to find in the archive
  * @returns ArchiveFetchResult with HTML content and archive URL
  */
-export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResult> {
+export async function fetchFromArchiveIs(
+  url: string,
+  onStatusUpdate?: ArchiveStatusCallback,
+): Promise<ArchiveFetchResult> {
   paywallLog.log("bypass:archive-is:start", { url });
+  onStatusUpdate?.("Retrieving archive from archive.is...");
 
   try {
     const controller = new AbortController();
@@ -148,8 +158,12 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
  * @param url - The original URL to find in the archive
  * @returns ArchiveFetchResult with HTML content and archive URL
  */
-export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult> {
+export async function fetchFromWayback(
+  url: string,
+  onStatusUpdate?: ArchiveStatusCallback,
+): Promise<ArchiveFetchResult> {
   paywallLog.log("bypass:wayback:start", { url });
+  onStatusUpdate?.("Checking Wayback Machine availability...");
 
   try {
     // Step 1: Check availability via the Wayback API
@@ -202,6 +216,7 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
       snapshotUrl,
       timestamp,
     });
+    onStatusUpdate?.("Retrieving archive from Wayback Machine...");
 
     // Step 2: Fetch the actual snapshot content
     const contentController = new AbortController();
@@ -291,6 +306,97 @@ function formatWaybackTimestamp(timestamp: string): string {
     });
   } catch {
     return timestamp;
+  }
+}
+
+/**
+ * Fetch content from RemovePaywall.com.
+ * This service attempts to bypass paywalls by fetching content through their proxy.
+ *
+ * @param url - The original URL to fetch
+ * @returns ArchiveFetchResult with HTML content
+ */
+export async function fetchFromRemovePaywall(
+  url: string,
+  onStatusUpdate?: ArchiveStatusCallback,
+): Promise<ArchiveFetchResult> {
+  paywallLog.log("bypass:removepaywall:start", { url });
+  onStatusUpdate?.("Trying RemovePaywall.com...");
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REMOVEPAYWALL_TIMEOUT_MS);
+
+    const requestUrl = `https://www.removepaywall.com/search?url=${encodeURIComponent(url)}`;
+
+    const response = await fetch(requestUrl, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      paywallLog.log("bypass:removepaywall:failed", {
+        url,
+        statusCode: response.status,
+        reason: `HTTP ${response.status}`,
+      });
+      return {
+        success: false,
+        service: "removepaywall",
+        error: `RemovePaywall returned HTTP ${response.status}`,
+      };
+    }
+
+    const html = await response.text();
+
+    // Check if we got actual content (not an error page)
+    // RemovePaywall may return a page with an error message if it can't fetch
+    if (html.length < 1000 || html.includes("Unable to fetch") || html.includes("Error fetching")) {
+      paywallLog.log("bypass:removepaywall:failed", {
+        url,
+        reason: "No content or error page returned",
+        contentLength: html.length,
+      });
+      return {
+        success: false,
+        service: "removepaywall",
+        error: "RemovePaywall could not fetch the content",
+      };
+    }
+
+    paywallLog.log("bypass:removepaywall:success", {
+      url,
+      contentLength: html.length,
+    });
+
+    return {
+      success: true,
+      html,
+      service: "removepaywall",
+      archiveUrl: requestUrl,
+    };
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "Unknown error";
+    const isTimeout = err instanceof Error && err.name === "AbortError";
+
+    paywallLog.log("bypass:removepaywall:failed", {
+      url,
+      reason: isTimeout ? "Request timed out" : reason,
+    });
+
+    return {
+      success: false,
+      service: "removepaywall",
+      error: isTimeout ? "RemovePaywall request timed out" : reason,
+    };
   }
 }
 

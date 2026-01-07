@@ -19,7 +19,9 @@
 | CNN | https://www.cnn.com/2025/12/30/tech/how-ai-changed-world-predictions-2026-vis | | | |
 | CNN | https://www.cnn.com/2025/12/15/tech/government-tech-force-ai | | | |
 | CNBC | https://www.cnbc.com/2026/01/02/chipmakers-2026-ai-trade.html | | | |
+| Boston Globe | https://www.bostonglobe.com/2022/04/21/opinion/qa-shouldnt-we-all-just-use-our-real-names-online/ | | | |
 | Reuters | https://www.reuters.com/technology/artificial-intelligence/ | | | |
+| VOX | https://www.vox.com/politics/473715/ai-data-center-chatgpt-electricity-polls | | | |
 | Yahoo Finance | https://finance.yahoo.com/video/ces-2026-expect-nvidia-ceo-150138967.html | | | Video content |
 
 ---
@@ -48,6 +50,7 @@
 | Substack | https://www.understandingai.org/p/17-predictions-for-ai-in-2026 | | | |
 | Personal Blog | https://www.allthingsdistributed.com/2025/11/tech-predictions-for-2026-and-beyond.html | | | Werner Vogels |
 | BBC Science Focus | https://www.sciencefocus.com/future-technology/hidden-forces-ai-bubble | | | |
+| Slate | https://slate.com/life/2025/02/cofermentation-coffee-flavors-watermelon-coconut-controversy.html | | | |
 
 ---
 

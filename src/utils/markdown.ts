@@ -141,7 +141,7 @@ export interface FormattedArticle {
 
 export interface ArchiveAnnotation {
   /** Which service provided the content */
-  service: "googlebot" | "archive.is" | "wayback" | "browser" | "none";
+  service: "googlebot" | "archive.is" | "removepaywall" | "wayback" | "browser" | "none";
   /** URL of the archived version (if applicable) */
   url?: string;
   /** Timestamp of the archived version */
@@ -191,6 +191,7 @@ function formatArchiveAnnotation(source: ArchiveAnnotation): string | null {
   const serviceLabels: Record<string, string> = {
     googlebot: "Googlebot bypass",
     "archive.is": "archive.is",
+    removepaywall: "RemovePaywall.com",
     wayback: "Wayback Machine",
     browser: "browser tab",
   };

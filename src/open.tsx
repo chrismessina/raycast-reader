@@ -13,7 +13,7 @@ import { getStyleLabel, buildSummaryPrompt, logSummarySuccess, logSummaryError }
 import { getCachedSummary, setCachedSummary } from "./utils/summaryCache";
 import { getAIConfigForStyle } from "./config/ai";
 import { resolveUrl, isValidUrl } from "./utils/url-resolver";
-import { loadArticleFromUrl } from "./utils/article-loader";
+import { loadArticleFromUrl, loadArticleViaPaywallHopper } from "./utils/article-loader";
 import { ArticleState } from "./types/article";
 import { UrlInputForm } from "./views/UrlInputForm";
 import { BlockedPageView } from "./views/BlockedPageView";
@@ -72,6 +72,28 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   // Refs
   const fetchStartedRef = useRef(false);
   const toastRef = useRef<Toast | null>(null);
+  const statusToastRef = useRef<Toast | null>(null);
+
+  // Status update callback for paywall bypass progress
+  const handleStatusUpdate = useCallback(async (message: string) => {
+    if (!statusToastRef.current) {
+      statusToastRef.current = await showToast({
+        style: Toast.Style.Animated,
+        title: "Bypassing paywall...",
+        message,
+      });
+    } else {
+      statusToastRef.current.message = message;
+    }
+  }, []);
+
+  // Clear status toast when loading completes
+  const clearStatusToast = useCallback(() => {
+    if (statusToastRef.current) {
+      statusToastRef.current.hide();
+      statusToastRef.current = null;
+    }
+  }, []);
 
   // Get AI config based on current summary style
   const aiConfig = getAIConfigForStyle(summaryStyle);
@@ -156,6 +178,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
 
   // Process article loading result
   const handleLoadResult = useCallback(async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
+    clearStatusToast();
     if (result.status === "success") {
       setArticle(result.article);
       setBlockedUrl(null);
@@ -193,7 +216,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       setError(result.error);
     }
     setIsLoading(false);
-  }, []);
+  }, [clearStatusToast]);
 
   // Initial article load
   useEffect(() => {
@@ -218,6 +241,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         skipPreCheck: preferences.skipPreCheck,
         enablePaywallHopper: preferences.enablePaywallHopper,
         showArticleImage: preferences.showArticleImage,
+        onStatusUpdate: handleStatusUpdate,
       });
       handleLoadResult(result);
     }
@@ -229,6 +253,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     preferences.enablePaywallHopper,
     preferences.showArticleImage,
     handleLoadResult,
+    handleStatusUpdate,
   ]);
 
   // Auto-trigger summary generation when article loads (if enabled)
@@ -336,9 +361,35 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       skipPreCheck: true,
       enablePaywallHopper: preferences.enablePaywallHopper,
       showArticleImage: preferences.showArticleImage,
+      onStatusUpdate: handleStatusUpdate,
     });
     handleLoadResult(result);
-  }, [notReadableUrl, handleLoadResult, preferences.enablePaywallHopper, preferences.showArticleImage]);
+  }, [notReadableUrl, handleLoadResult, preferences.enablePaywallHopper, preferences.showArticleImage, handleStatusUpdate]);
+
+  // Handler to try Paywall Hopper directly for known paywalled sites
+  const handleTryPaywallHopper = useCallback(async () => {
+    if (!notReadableUrl) return;
+
+    setIsLoading(true);
+    setNotReadableUrl(null);
+    setError(null);
+
+    urlLog.log("session:try-paywall-hopper", { url: notReadableUrl });
+
+    const result = await loadArticleViaPaywallHopper(notReadableUrl, {
+      showArticleImage: preferences.showArticleImage,
+      onStatusUpdate: handleStatusUpdate,
+    });
+
+    if (result.status === "success") {
+      handleLoadResult(result);
+    } else {
+      // If hopper failed, show error but allow retry
+      setError(result.error);
+      setNotReadableUrl(notReadableUrl);
+      setIsLoading(false);
+    }
+  }, [notReadableUrl, handleLoadResult, preferences.showArticleImage, handleStatusUpdate]);
 
   // Handler for URL form submission
   const handleUrlSubmit = useCallback(
@@ -361,10 +412,11 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         skipPreCheck: preferences.skipPreCheck,
         enablePaywallHopper: preferences.enablePaywallHopper,
         showArticleImage: preferences.showArticleImage,
+        onStatusUpdate: handleStatusUpdate,
       });
       handleLoadResult(result);
     },
-    [preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult],
+    [preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult, handleStatusUpdate],
   );
 
   // --- Render Logic ---
@@ -384,7 +436,14 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   }
 
   if (notReadableUrl && error) {
-    return <NotReadableView url={notReadableUrl} error={error} onRetryWithoutCheck={handleRetryWithoutCheck} />;
+    return (
+      <NotReadableView
+        url={notReadableUrl}
+        error={error}
+        onRetryWithoutCheck={handleRetryWithoutCheck}
+        onTryPaywallHopper={handleTryPaywallHopper}
+      />
+    );
   }
 
   if (emptyContentUrl) {

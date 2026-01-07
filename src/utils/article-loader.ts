@@ -4,6 +4,7 @@ import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
 import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
 import { tryBypassPaywall, createArchiveSource, ArchiveSource } from "./paywall-hopper";
+import { ArchiveStatusCallback } from "./archive-fetcher";
 import { detectPaywallInText } from "./paywall-detector";
 import { BrowserTab } from "../types/browser";
 import { ArticleState } from "../types/article";
@@ -22,6 +23,8 @@ interface LoadArticleOptions {
   enablePaywallHopper?: boolean;
   /** Whether to show the article image at the top (default: true) */
   showArticleImage?: boolean;
+  /** Callback for status updates during paywall bypass */
+  onStatusUpdate?: ArchiveStatusCallback;
 }
 
 /**
@@ -54,7 +57,7 @@ export async function loadArticleFromUrl(
       if (options.enablePaywallHopper) {
         paywallLog.log("hopper:blocked-page-detected", { url, statusCode: 403 });
 
-        const hopperResult = await tryBypassPaywall(url);
+        const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
 
         if (hopperResult.success && hopperResult.html) {
           paywallLog.log("hopper:bypass-success", {
@@ -188,7 +191,7 @@ export async function loadArticleFromUrl(
       });
 
       // Try to get full content via Paywall Hopper
-      const hopperResult = await tryBypassPaywall(url);
+      const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
 
       if (hopperResult.success && hopperResult.html) {
         // Parse the bypassed content
@@ -285,6 +288,88 @@ export async function loadArticleFromUrl(
     textContent: parseResult.article.textContent,
     bypassedReadabilityCheck: options.skipPreCheck,
   };
+
+  return { status: "success", article };
+}
+
+/**
+ * Attempts to load an article directly via Paywall Hopper bypass methods.
+ * Used when initial fetch fails readability check but the site is known to be paywalled.
+ */
+export async function loadArticleViaPaywallHopper(
+  url: string,
+  options: {
+    showArticleImage?: boolean;
+    onStatusUpdate?: ArchiveStatusCallback;
+  },
+): Promise<LoadArticleResult> {
+  paywallLog.log("hopper:direct-attempt", { url });
+
+  const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
+
+  if (!hopperResult.success || !hopperResult.html) {
+    paywallLog.log("hopper:direct-failed", { url, error: hopperResult.error });
+    return {
+      status: "error",
+      error: hopperResult.error || "Failed to retrieve content via Paywall Hopper",
+    };
+  }
+
+  paywallLog.log("hopper:direct-success", {
+    url,
+    source: hopperResult.source,
+    archiveUrl: hopperResult.archiveUrl,
+  });
+
+  const parseResult = parseArticle(hopperResult.html, url, {
+    skipPreCheck: true,
+    forceParse: true,
+  });
+
+  if (!parseResult.success) {
+    paywallLog.log("hopper:direct-parse-failed", {
+      url,
+      source: hopperResult.source,
+      error: parseResult.error.message,
+    });
+    return {
+      status: "error",
+      error: `Retrieved content but failed to parse: ${parseResult.error.message}`,
+    };
+  }
+
+  const archiveSource = createArchiveSource(hopperResult);
+
+  const formatted = formatArticle(parseResult.article.title, parseResult.article.content, {
+    image: options.showArticleImage !== false ? parseResult.article.image : null,
+    archiveSource: archiveSource
+      ? {
+          service: archiveSource.service,
+          url: archiveSource.url,
+          timestamp: archiveSource.timestamp,
+        }
+      : undefined,
+  });
+
+  const article: ArticleState = {
+    bodyMarkdown: formatted.markdown,
+    title: parseResult.article.title,
+    byline: parseResult.article.byline,
+    siteName: parseResult.article.siteName,
+    url,
+    source: "paywall-hopper",
+    textContent: parseResult.article.textContent,
+    bypassedReadabilityCheck: true,
+    archiveSource,
+  };
+
+  urlLog.log("session:ready", {
+    url,
+    title: formatted.title,
+    markdownLength: formatted.markdown.length,
+    bypassedCheck: true,
+    archiveSource: hopperResult.source,
+  });
 
   return { status: "success", article };
 }

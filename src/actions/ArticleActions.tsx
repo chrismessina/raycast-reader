@@ -10,6 +10,7 @@ export const SUMMARY_STYLES: { style: SummaryStyle; icon: Icon }[] = [
   { style: "eli5", icon: Icon.SpeechBubble },
   { style: "translated", icon: Icon.Globe },
   { style: "entities", icon: Icon.Person },
+  { style: "arc-style", icon: Icon.Stars },
 ];
 
 interface ArticleActionsProps {

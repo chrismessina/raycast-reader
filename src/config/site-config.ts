@@ -287,9 +287,15 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         ".embed-tc-newsletter",
         ".related-posts",
         ".ad-unit",
+        ".article__meta",
         ".wp-block-techcrunch-inline-cta",
+        ".wp-block-techcrunch-post-authors-list",
         '[data-ctatext="View Bio"]',
         ".wp-block-image__credits", // Remove "Image Credits:" spans from figcaptions
+        ".wp-block-post-featured-image",
+        "#h-latest-in",
+        ".wp-block-tc23-post-relevant-terms",
+        ".newsletter-signup-compact__description",
       ],
     },
   ],
@@ -316,6 +322,37 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       preferSchemaOrg: true,
     },
   ],
+
+  // Boston Globe
+  [
+    /^(.*\.)?bostonglobe\.com$/i,
+    {
+      name: "Boston Globe",
+      articleSelector: "#article-body",
+      removeSelectors: [".ad", ".newsletter"],
+    },
+  ],
+
+  // Slate
+  [
+    /^(.*\.)?slate\.com$/i,
+    {
+      name: "Slate",
+      articleSelector: ".article__body",
+      removeSelectors: [".article__top-image", " .article__rubric", ".article__podcast-subscribe", ".recirc-line", ".slate-ad", ".newsletter-signup", ".social-share", ".article__tags"],
+    },
+  ],
+
+  // Engadget
+  [
+    /^(.*\.)?engadget\.com$/i,
+    {
+      name: "Engadget",
+      articleSelector: "main article #page_body",
+      removeSelectors: [".ad", ".newsletter-signup"],
+    },
+  ],
+
 
   // Engadget
   [
@@ -577,6 +614,36 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         "nav",
         ".menu-main-menu-container",
         "#menu-main-menu",
+      ],
+    },
+  ],
+
+  // Every.to
+  [
+    /^(.*\.)?every\.to$/i,
+    {
+      name: "Every",
+      articleSelector: '[itemprop="articleBody"]',
+      removeSelectors: [
+        "#comments-box",
+        ".mb-8",
+      ],
+    },
+  ],
+
+  // Financial Times
+  [
+    /^(.*\.)?ft\.com$/i,
+    {
+      name: "FinancialTimes",
+      articleSelector: "article",
+      removeSelectors: [
+        ".o-topper__visual",
+        ".article-image__placeholder",
+        '[data-trackable="share-nav"]',
+        ".o-ads",
+        ".n-content-recommended",
+        ".o-teaser-collection",
       ],
     },
   ],

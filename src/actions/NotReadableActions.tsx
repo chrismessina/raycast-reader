@@ -3,9 +3,10 @@ import { ActionPanel, Action, Icon, Keyboard } from "@raycast/api";
 interface NotReadableActionsProps {
   url: string;
   onRetryWithoutCheck: () => void;
+  onTryPaywallHopper?: () => void;
 }
 
-export function NotReadableActions({ url, onRetryWithoutCheck }: NotReadableActionsProps) {
+export function NotReadableActions({ url, onRetryWithoutCheck, onTryPaywallHopper }: NotReadableActionsProps) {
   return (
     <ActionPanel>
       <Action
@@ -14,6 +15,14 @@ export function NotReadableActions({ url, onRetryWithoutCheck }: NotReadableActi
         onAction={onRetryWithoutCheck}
         shortcut={{ modifiers: ["cmd", "shift"], key: "enter" }}
       />
+      {onTryPaywallHopper && (
+        <Action
+          title="Try to Hop Paywall"
+          icon={Icon.Download}
+          onAction={onTryPaywallHopper}
+          shortcut={{ modifiers: ["cmd"], key: "p" }}
+        />
+      )}
       <Action.OpenInBrowser
         title="Open in Browser"
         url={url}

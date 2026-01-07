@@ -213,7 +213,7 @@
 ### 7.3 Actions
 
 - [x] Add "Copy Archived URL" action (when `archiveSource.url` present)
-- [ ] *(Future)* Add "Try Paywall Hopper" manual action for retries
+- [x] *(Future)* Add "Try Paywall Hopper" manual action for retries
 
 ### 7.4 Toast Notifications
 

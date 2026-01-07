@@ -107,6 +107,27 @@ Format your response EXACTLY like this:
 
 If a category has no relevant entities, you may omit it.`,
   },
+
+  "arc-style": {
+    label: "Arc-style Summary",
+    buildPrompt: (context) => `${context}
+
+The reader opened a webpage that's too long for them to read right now.
+
+You will:
+1. Read the webpage info provided above.
+2. Write bullet points providing the most important information and details that they most likely want to know about right now.
+
+For any given page, write at least three bullet points, but try to write more if you can.
+Write the summary from the point of view of the author of the webpage and capture the tone and perspective of the author.
+Your summary should be fact-filled and SPECIFIC, providing information like prices, review sentiment, dates, addresses, times, instructions, ingredients, top news stories, amounts, timelines, characters, answers, features, comparisons, shipping times.
+Admit when you're unsure or don't know how to summarize, and never make a statement without providing a fact or instance to back it up.
+Do NOT repeat text or concepts in your summary.
+If the webpage is for a recipe, first describe the style and type of dish this is and then provide exact steps for the preparation and cooking instructions. List all ingredients including exact measurements and amounts. Also note number of servings and cooking or preparation times.
+If the page is for a restaurant, write a brief description of why it is notable, write a list of what's on the menu and provide opening times, addresses, and contact details.
+
+Format your response as bullet points with clear, specific information. Ideally 4-7 key points, but no less than three. Don't summarize what's already covered by the webpage title.`,
+  },
 };
 
 /**

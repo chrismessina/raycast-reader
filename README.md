@@ -21,7 +21,6 @@ Read the web distraction-free in Raycast.
 - **Browser Extension Fallback** - Access blocked pages and re-import member-only content via the Raycast browser extension
 - **Smart URL Detection** - Automatically detects URLs from arguments, clipboard, selection, or active browser tab
 
-
 ## Architecture
 
 ### Content Extraction
@@ -109,6 +108,7 @@ export const SUMMARY_PROMPTS: Record<SummaryStyle, PromptConfig> = {
 ```
 
 Each prompt config includes:
+
 - **`label`** - Human-readable name shown in the UI
 - **`buildPrompt`** - Function that generates the full prompt from article context
 
@@ -122,7 +122,6 @@ Each prompt config includes:
 | **Explain Like I'm 5** | Simplified explanation using simple language |
 | **Translated Overview** | Overview translated to a specified language |
 | **People, Places & Things** | Key entities extracted with context |
-
 
 ## Browser Extension Integration
 
@@ -150,6 +149,7 @@ Some websites (like Politico, Bloomberg, etc.) use bot detection that prevents d
 For paywalled or member-only articles (like Medium member stories), you can re-import content from an authenticated browser session:
 
 **When to Use:**
+
 - Medium member-only articles
 - Paywalled content from news sites
 - Any article requiring authentication to view full content
@@ -163,6 +163,7 @@ For paywalled or member-only articles (like Medium member stories), you can re-i
 5. Content is re-imported with your authenticated session, showing the full article
 
 **Requirements:**
+
 - [Raycast browser extension](https://www.raycast.com/browser-extension) must be installed
 - The article must be open in a browser tab
 - You must be logged in to the site in your browser
@@ -186,16 +187,6 @@ Instead, we adopted Defuddle's excellent patterns:
 
 This hybrid approach gives us the best of both worlds: Defuddle's battle-tested extraction patterns with tight Raycast integration.
 
-## Known Issues
-
-### Bracket Rendering
-Square brackets `[text]` that appear in article content (such as editorial insertions in quotes) are automatically converted to parentheses `(text)` to prevent Raycast's markdown renderer from interpreting them as LaTeX math notation. This is a workaround for a rendering limitation and means the displayed text may differ slightly from the original source material.
-
-### Image Rendering
-Image alt text and title attributes are automatically stripped to ensure proper rendering in Raycast. Images are displayed as `![](url)` without descriptive text. This prevents rendering issues where long alt text or title attributes (especially those containing quotes) can break the markdown image syntax.
-
-Additionally, relative image URLs (e.g., `/image.jpg`) are automatically converted to absolute URLs using the page's base URL to ensure images load properly.
-
 ## References
 
 - [Mozilla Readability](https://github.com/mozilla/readability) - Core content extraction
@@ -204,3 +195,9 @@ Additionally, relative image URLs (e.g., `/image.jpg`) are automatically convert
 - [Raycast API Docs](https://developers.raycast.com)
 - [Logger Integration Guide](./docs/logger-integration.md)
 - [Extension Spec](./docs/about.md)
+
+---
+
+If you find Reader Mode helpful, feel free to buy me a coffee!
+
+[Buy Me A Coffee](https://ko-fi.com/chris)
