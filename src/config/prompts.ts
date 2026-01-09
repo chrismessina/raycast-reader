@@ -74,7 +74,29 @@ Format your response as a simple, friendly explanation in 2-3 short paragraphs.`
   translated: {
     label: "Translated Overview",
     buildPrompt: (context, options) => {
-      const lang = options?.language || "Spanish";
+      const LANGUAGE_NAMES: Record<string, string> = {
+        "es-ES": "Spanish",
+        "fr-FR": "French",
+        "de-DE": "German",
+        "it-IT": "Italian",
+        "pt-BR": "Portuguese",
+        "ja-JP": "Japanese",
+        "zh-Hans": "Chinese (Simplified)",
+        "zh-Hant": "Chinese (Traditional)",
+        "ko-KR": "Korean",
+        "ru-RU": "Russian",
+        "ar-SA": "Arabic",
+        "hi-IN": "Hindi",
+        "nl-NL": "Dutch",
+        "pl-PL": "Polish",
+        "sv-SE": "Swedish",
+        "tr-TR": "Turkish",
+        "vi-VN": "Vietnamese",
+        "th-TH": "Thai",
+        "el-GR": "Greek",
+        "he-IL": "Hebrew",
+      };
+      const lang = options?.language ? LANGUAGE_NAMES[options.language] || options.language : "Spanish";
       const level = options?.level || "intermediate";
       return `${context}
 

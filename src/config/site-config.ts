@@ -339,7 +339,16 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     {
       name: "Slate",
       articleSelector: ".article__body",
-      removeSelectors: [".article__top-image", " .article__rubric", ".article__podcast-subscribe", ".recirc-line", ".slate-ad", ".newsletter-signup", ".social-share", ".article__tags"],
+      removeSelectors: [
+        ".article__top-image",
+        " .article__rubric",
+        ".article__podcast-subscribe",
+        ".recirc-line",
+        ".slate-ad",
+        ".newsletter-signup",
+        ".social-share",
+        ".article__tags",
+      ],
     },
   ],
 
@@ -352,7 +361,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       removeSelectors: [".ad", ".newsletter-signup"],
     },
   ],
-
 
   // Engadget
   [
@@ -624,10 +632,7 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     {
       name: "Every",
       articleSelector: '[itemprop="articleBody"]',
-      removeSelectors: [
-        "#comments-box",
-        ".mb-8",
-      ],
+      removeSelectors: ["#comments-box", ".mb-8"],
     },
   ],
 

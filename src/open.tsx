@@ -177,46 +177,49 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   );
 
   // Process article loading result
-  const handleLoadResult = useCallback(async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
-    clearStatusToast();
-    if (result.status === "success") {
-      setArticle(result.article);
-      setBlockedUrl(null);
-      setNotReadableUrl(null);
-      setEmptyContentUrl(null);
-      setError(null);
+  const handleLoadResult = useCallback(
+    async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
+      clearStatusToast();
+      if (result.status === "success") {
+        setArticle(result.article);
+        setBlockedUrl(null);
+        setNotReadableUrl(null);
+        setEmptyContentUrl(null);
+        setError(null);
 
-      // Show toast when article was retrieved via Paywall Hopper
-      if (result.article.archiveSource) {
-        const sourceLabels: Record<string, string> = {
-          googlebot: "Googlebot bypass",
-          "archive.is": "archive.is",
-          wayback: "Wayback Machine",
-          browser: "browser tab",
-        };
-        const label = sourceLabels[result.article.archiveSource.service] || result.article.archiveSource.service;
-        await showToast({
-          style: Toast.Style.Success,
-          title: "Paywall bypassed",
-          message: `Retrieved via ${label}`,
-        });
+        // Show toast when article was retrieved via Paywall Hopper
+        if (result.article.archiveSource) {
+          const sourceLabels: Record<string, string> = {
+            googlebot: "Googlebot bypass",
+            "archive.is": "archive.is",
+            wayback: "Wayback Machine",
+            browser: "browser tab",
+          };
+          const label = sourceLabels[result.article.archiveSource.service] || result.article.archiveSource.service;
+          await showToast({
+            style: Toast.Style.Success,
+            title: "Paywall bypassed",
+            message: `Retrieved via ${label}`,
+          });
+        }
+      } else if (result.status === "blocked") {
+        setBlockedUrl(result.url);
+        setHasBrowserExtension(result.hasBrowserExtension);
+        setFoundTab(result.foundTab);
+        setError(result.error);
+      } else if (result.status === "not-readable") {
+        setNotReadableUrl(result.url);
+        setError(result.error);
+      } else if (result.status === "empty-content") {
+        setEmptyContentUrl(result.url);
+        setError(result.error);
+      } else {
+        setError(result.error);
       }
-    } else if (result.status === "blocked") {
-      setBlockedUrl(result.url);
-      setHasBrowserExtension(result.hasBrowserExtension);
-      setFoundTab(result.foundTab);
-      setError(result.error);
-    } else if (result.status === "not-readable") {
-      setNotReadableUrl(result.url);
-      setError(result.error);
-    } else if (result.status === "empty-content") {
-      setEmptyContentUrl(result.url);
-      setError(result.error);
-    } else {
-      setError(result.error);
-    }
-    setIsLoading(false);
-  }, [clearStatusToast]);
+      setIsLoading(false);
+    },
+    [clearStatusToast],
+  );
 
   // Initial article load
   useEffect(() => {
@@ -364,7 +367,13 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       onStatusUpdate: handleStatusUpdate,
     });
     handleLoadResult(result);
-  }, [notReadableUrl, handleLoadResult, preferences.enablePaywallHopper, preferences.showArticleImage, handleStatusUpdate]);
+  }, [
+    notReadableUrl,
+    handleLoadResult,
+    preferences.enablePaywallHopper,
+    preferences.showArticleImage,
+    handleStatusUpdate,
+  ]);
 
   // Handler to try Paywall Hopper directly for known paywalled sites
   const handleTryPaywallHopper = useCallback(async () => {
@@ -416,7 +425,13 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       });
       handleLoadResult(result);
     },
-    [preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult, handleStatusUpdate],
+    [
+      preferences.skipPreCheck,
+      preferences.enablePaywallHopper,
+      preferences.showArticleImage,
+      handleLoadResult,
+      handleStatusUpdate,
+    ],
   );
 
   // --- Render Logic ---
