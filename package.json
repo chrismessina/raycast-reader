@@ -9,6 +9,7 @@
     "macOS",
     "Windows"
   ],
+  "version": "1.0.0",
   "categories": [
     "News",
     "Productivity",
@@ -108,8 +109,8 @@
     },
     {
       "name": "skipPreCheck",
-      "title": "Check for Readability",
-      "description": "Skipping always shows reader mode, even if there's no readable content.",
+      "title": "Skip Readability Pre-Check",
+      "description": "Skip the readability pre-check and always show reader mode.",
       "type": "checkbox",
       "label": "Skip",
       "default": true,

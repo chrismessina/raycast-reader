@@ -261,7 +261,7 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     /^(.*\.)?reuters\.com$/i,
     {
       name: "Reuters",
-      articleSelector: '[data-testid="Article"]',
+      articleSelector: '[data-testid="Article"], [data-testid="article-body"]',
       removeSelectors: [
         ".ad",
         ".newsletter-subscribe-form",
@@ -273,6 +273,9 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         '[data-testid="AuthorBio"]',
         '[data-testid="NewTabSymbol"]',
         '[data-testid="Link"] > span[style*="clip"]',
+        '[data-testid="Slideshow"]',
+        ".related-coverage",
+        ".trust-principles",
       ],
     },
   ],
@@ -362,16 +365,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
-  // Engadget
-  [
-    /^(.*\.)?engadget\.com$/i,
-    {
-      name: "Engadget",
-      articleSelector: "main article #page_body",
-      removeSelectors: [".ad", ".newsletter-signup"],
-    },
-  ],
-
   // CNET
   [
     /^(.*\.)?cnet\.com$/i,
@@ -429,16 +422,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       name: "Bloomberg",
       articleSelector: "article",
       removeSelectors: [".ad", '[data-component="paywall"]', ".newsletter-signup", ".sticky-ad", ".right-rail"],
-    },
-  ],
-
-  // Reuters
-  [
-    /^(.*\.)?reuters\.com$/i,
-    {
-      name: "Reuters",
-      articleSelector: '[data-testid="article-body"]',
-      removeSelectors: [".ad", '[data-testid="Slideshow"]', ".related-coverage", ".trust-principles"],
     },
   ],
 

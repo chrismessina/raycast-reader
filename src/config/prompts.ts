@@ -133,7 +133,6 @@ If a category has no relevant entities, you may omit it.`,
   "arc-style": {
     label: "Arc-style Summary",
     buildPrompt: (context) => `${context}
-
 The reader opened a webpage that's too long for them to read right now.
 
 You will:
@@ -148,7 +147,7 @@ Do NOT repeat text or concepts in your summary.
 If the webpage is for a recipe, first describe the style and type of dish this is and then provide exact steps for the preparation and cooking instructions. List all ingredients including exact measurements and amounts. Also note number of servings and cooking or preparation times.
 If the page is for a restaurant, write a brief description of why it is notable, write a list of what's on the menu and provide opening times, addresses, and contact details.
 
-Format your response as bullet points with clear, specific information. Ideally 4-7 key points, but no less than three. Don't summarize what's already covered by the webpage title.`,
+Format your response EXACTLY as bullet points with clear, specific information. Start immediately with bullet points - do not include any introductory text or paragraphs. Provide 4-7 key points, but no less than three. Don't summarize what's already covered by the webpage title.`,
   },
 };
 

@@ -36,7 +36,7 @@ export function ArticleActions({
     <ActionPanel>
       {canAccessAI && (
         <ActionPanel.Submenu
-          title={currentSummary ? "Regenerate Summary…" : "Summarize…"}
+          title={currentSummary ? "Change Summary Style" : "Summarize…"}
           icon={Icon.Stars}
           shortcut={{ modifiers: ["cmd"], key: "s" }}
         >
