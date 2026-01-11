@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "reader-mode",
-  "title": "Reader",
+  "title": "Reader Mode",
   "description": "Read the web distraction-free in Raycast.",
   "icon": "reader-icon.png",
   "author": "chrismessina",
@@ -19,8 +19,8 @@
   "commands": [
     {
       "name": "open",
-      "title": "Open Reader",
-      "subtitle": "Reader",
+      "title": "Open Reader Mode",
+      "subtitle": "Reader Mode",
       "description": "Open URL in reader mode",
       "mode": "view",
       "arguments": [
@@ -52,6 +52,7 @@
       "required": false,
       "data": [
         { "title": "Overview", "value": "overview" },
+        { "title": "Arc-style Summary", "value": "arc-style" },
         { "title": "Opposing Sides", "value": "opposite-sides" },
         { "title": "The 5 Ws", "value": "five-ws" },
         { "title": "Explain Like I'm 5", "value": "eli5" },

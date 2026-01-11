@@ -1,3 +1,3 @@
-# Reader Mode Changelog
+# Reader Changelog
 
 ## [Initial Version] - {PR_MERGE_DATE}

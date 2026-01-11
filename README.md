@@ -16,16 +16,14 @@ Read the web distraction-free in Raycast.
 
 ## Quick Start
 
-**Installation:** [Install from Raycast Store](https://www.raycast.com/chrismessina/reader-mode)
-
 **Usage:**
 
-1. Open Raycast and type "reader" or use your chosen alias
-2. Paste a URL, or let Reader detect URLs from:
+1. Once installed, open Raycast and type `reader` (or use your chosen alias)
+2. Paste a URL, or let Reader Mode detect URLs from:
    - Your clipboard
    - Selected text
-   - The active browser tab
-3. Reader extracts and displays the article with an optional AI summary
+   - The active browser tab (if you have the [Raycast browser extension](https://www.raycast.com/browser-extension) installed)
+3. Reader Mode extracts and displays the article with an optional AI summary
 
 **Keyboard shortcuts:**
 
@@ -38,24 +36,24 @@ Read the web distraction-free in Raycast.
 
 - **Clean Reading Experience** — Extracts article content and removes distractions
 - **AI Summaries** — Multiple summary styles powered by Raycast AI
-- **Article Images** — Optionally display featured images (toggle in preferences)
-- **Browser Extension Fallback** — Access blocked pages and re-import member-only content via the Raycast browser extension
+- **Article Images** — Optionally display featured image (toggle in preferences)
+- **Browser Extension Fallback** — Access blocked pages and re-import member-only content via the [Raycast browser extension](https://www.raycast.com/browser-extension)
 - **Smart URL Detection** — Automatically detects URLs from arguments, clipboard, selection, or active browser tab
 - **Paywall Bypass** — Attempts to retrieve paywalled content via archive services
 
 ## Summary Styles
 
-Reader offers seven AI-powered summary styles accessible via the action panel:
+Reader Mode offers seven AI-powered summary styles accessible via the action panel:
 
 | Style | Description | Best For |
-|-------|-------------|----------|
+| ------- | ------------- | ---------- |
 | **Overview** | One-liner + 3 key bullet points | Quick scanning of news and articles |
+| **Arc-style Summary** | Detailed, fact-specific summary (4-7 points) | Long articles needing comprehensive summaries |
 | **Opposing Sides** | Two contrasting perspectives | Opinion pieces and debates |
 | **The 5 Ws** | Who, What, Where, When, Why breakdown | News stories and event coverage |
 | **Explain Like I'm 5** | Simplified, friendly explanation | Complex or technical content |
 | **Translated Overview** | Overview in 20+ languages | Language learning and international readers |
 | **People, Places & Things** | Key entities with context | Articles with many named entities |
-| **Arc-style Summary** | Detailed, fact-specific summary (4-7 points) | Long articles needing comprehensive summaries |
 
 Change summary styles via the action panel (`⌘ + K`) or set a default in preferences.
 
