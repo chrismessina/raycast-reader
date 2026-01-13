@@ -16,6 +16,9 @@ export const WAYBACK_TIMEOUT_MS = 30000;
 /** Alternative archive.is domains to try when rate limited */
 const ARCHIVE_IS_DOMAINS = ["archive.is", "archive.today", "archive.ph"];
 
+/** Regex pattern to extract timestamp from archive.is URLs */
+const ARCHIVE_TIMESTAMP_PATTERN = /archive\.(?:is|today|ph)\/(\d{4}\.\d{2}\.\d{2}-\d+)/;
+
 
 /**
  * Result from an archive fetch attempt
@@ -56,7 +59,9 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
   paywallLog.log("bypass:archive-is:start", { url });
 
   // Try each archive.is domain in sequence
-  for (const domain of ARCHIVE_IS_DOMAINS) {
+  for (let i = 0; i < ARCHIVE_IS_DOMAINS.length; i++) {
+    const domain = ARCHIVE_IS_DOMAINS[i];
+    const isLastDomain = i === ARCHIVE_IS_DOMAINS.length - 1;
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), ARCHIVE_IS_TIMEOUT_MS);
@@ -105,7 +110,7 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
 
           if (directResponse.ok) {
             const html = await directResponse.text();
-            const timestampMatch = finalUrl.match(/archive\.(?:is|today|ph)\/(\d{4}\.\d{2}\.\d{2}-\d+)/);
+            const timestampMatch = finalUrl.match(ARCHIVE_TIMESTAMP_PATTERN);
             const timestamp = timestampMatch ? timestampMatch[1] : undefined;
 
             paywallLog.log("bypass:archive-is:success-direct-fetch", {
@@ -133,7 +138,7 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
 
       if (!response.ok) {
         // If this is the last domain, return error
-        if (domain === ARCHIVE_IS_DOMAINS[ARCHIVE_IS_DOMAINS.length - 1]) {
+        if (isLastDomain) {
           return {
             success: false,
             service: "archive.is",
@@ -147,7 +152,7 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
       if (!isArchivePage) {
         // No archived version found - archive.is returns a search page or error
         // If this is the last domain, return error
-        if (domain === ARCHIVE_IS_DOMAINS[ARCHIVE_IS_DOMAINS.length - 1]) {
+        if (isLastDomain) {
           return {
             success: false,
             service: "archive.is",
@@ -163,7 +168,7 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
 
       // Extract timestamp from archive.is page if available
       // Archive.is pages often have a timestamp in the URL like /2024.01.03-123456/
-      const timestampMatch = finalUrl.match(/archive\.(?:is|today|ph)\/(\d{4}\.\d{2}\.\d{2}-\d+)/);
+      const timestampMatch = finalUrl.match(ARCHIVE_TIMESTAMP_PATTERN);
       const timestamp = timestampMatch ? timestampMatch[1] : undefined;
 
       paywallLog.log("bypass:archive-is:success", {
@@ -186,7 +191,7 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
       const isTimeout = err instanceof Error && err.name === "AbortError";
 
       // If this is the last domain, return error
-      if (domain === ARCHIVE_IS_DOMAINS[ARCHIVE_IS_DOMAINS.length - 1]) {
+      if (isLastDomain) {
         return {
           success: false,
           service: "archive.is",
