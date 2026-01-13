@@ -15,6 +15,9 @@ import { getAIConfigForStyle } from "./config/ai";
 import { resolveUrl, isValidUrl } from "./utils/url-resolver";
 import { loadArticleFromUrl } from "./utils/article-loader";
 import { ArticleState } from "./types/article";
+import { tryBypassPaywall, createArchiveSource } from "./utils/paywall-hopper";
+import { parseArticle } from "./utils/readability";
+import { formatArticle } from "./utils/markdown";
 import { UrlInputForm } from "./views/UrlInputForm";
 import { BlockedPageView } from "./views/BlockedPageView";
 import { NotReadableView } from "./views/NotReadableView";
@@ -167,6 +170,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       if (result.article.archiveSource) {
         const sourceLabels: Record<string, string> = {
           googlebot: "Googlebot bypass",
+          bingbot: "Bingbot bypass",
+          "social-referrer": "Social media referrer",
+          wallhopper: "WallHopper",
           "archive.is": "archive.is",
           wayback: "Wayback Machine",
           browser: "browser tab",
