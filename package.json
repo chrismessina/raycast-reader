@@ -1,7 +1,7 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "reader-mode",
-  "title": "Reader",
+  "title": "Reader Mode",
   "description": "Read the web distraction-free in Raycast.",
   "icon": "reader-icon.png",
   "author": "chrismessina",
@@ -9,6 +9,7 @@
     "macOS",
     "Windows"
   ],
+  "version": "1.0.0",
   "categories": [
     "News",
     "Productivity",
@@ -18,8 +19,8 @@
   "commands": [
     {
       "name": "open",
-      "title": "Open Reader",
-      "subtitle": "Reader",
+      "title": "Open Reader Mode",
+      "subtitle": "Reader Mode",
       "description": "Open URL in reader mode",
       "mode": "view",
       "arguments": [
@@ -34,12 +35,21 @@
   ],
   "preferences": [
     {
+      "name": "rewriteArticleTitles",
+      "title": "Rewrite Article Titles",
+      "description": "Generate concise, easy-to-read titles (requires Raycast AI).",
+      "type": "checkbox",
+      "label": "Enable",
+      "default": false,
+      "required": false
+    },
+    {
       "name": "enableAISummary",
       "title": "Automatically Generate Summaries",
       "description": "Automatically summarize articles (requires Raycast AI).",
       "type": "checkbox",
       "label": "Enable",
-      "default": true,
+      "default": false,
       "required": false
     },
     {
@@ -51,6 +61,8 @@
       "required": false,
       "data": [
         { "title": "Overview", "value": "overview" },
+        { "title": "Raycast-style", "value": "raycast-style" },
+        { "title": "Arc-style", "value": "arc-style" },
         { "title": "Opposing Sides", "value": "opposite-sides" },
         { "title": "The 5 Ws", "value": "five-ws" },
         { "title": "Explain Like I'm 5", "value": "eli5" },
@@ -63,29 +75,29 @@
       "title": "Translated Overview Language",
       "description": "Default language for translated summaries.",
       "type": "dropdown",
-      "default": "es",
+      "default": "es-ES",
       "required": false,
       "data": [
-        { "title": "Spanish", "value": "es" },
-        { "title": "French", "value": "fr" },
-        { "title": "German", "value": "de" },
-        { "title": "Italian", "value": "it" },
-        { "title": "Portuguese", "value": "pt" },
-        { "title": "Japanese", "value": "ja" },
-        { "title": "Chinese (Simplified)", "value": "zh-CN" },
-        { "title": "Chinese (Traditional)", "value": "zh-TW" },
-        { "title": "Korean", "value": "ko" },
-        { "title": "Russian", "value": "ru" },
-        { "title": "Arabic", "value": "ar" },
-        { "title": "Hindi", "value": "hi" },
-        { "title": "Dutch", "value": "nl" },
-        { "title": "Polish", "value": "pl" },
-        { "title": "Swedish", "value": "sv" },
-        { "title": "Turkish", "value": "tr" },
-        { "title": "Vietnamese", "value": "vi" },
-        { "title": "Thai", "value": "th" },
-        { "title": "Greek", "value": "el" },
-        { "title": "Hebrew", "value": "he" }
+        { "title": "🇪🇸 Spanish", "value": "es-ES" },
+        { "title": "🇫🇷 French", "value": "fr-FR" },
+        { "title": "🇩🇪 German", "value": "de-DE" },
+        { "title": "🇮🇹 Italian", "value": "it-IT" },
+        { "title": "🇧🇷 Portuguese", "value": "pt-BR" },
+        { "title": "🇯🇵 Japanese", "value": "ja-JP" },
+        { "title": "🇨🇳 Chinese (Simplified)", "value": "zh-Hans" },
+        { "title": "🇹🇼 Chinese (Traditional)", "value": "zh-Hant" },
+        { "title": "🇰🇷 Korean", "value": "ko-KR" },
+        { "title": "🇷🇺 Russian", "value": "ru-RU" },
+        { "title": "🇸🇦 Arabic", "value": "ar-SA" },
+        { "title": "🇮🇳 Hindi", "value": "hi-IN" },
+        { "title": "🇳🇱 Dutch", "value": "nl-NL" },
+        { "title": "🇵🇱 Polish", "value": "pl-PL" },
+        { "title": "🇸🇪 Swedish", "value": "sv-SE" },
+        { "title": "🇹🇷 Turkish", "value": "tr-TR" },
+        { "title": "🇻🇳 Vietnamese", "value": "vi-VN" },
+        { "title": "🇹🇭 Thai", "value": "th-TH" },
+        { "title": "🇬🇷 Greek", "value": "el-GR" },
+        { "title": "🇮🇱 Hebrew", "value": "he-IL" }
       ]
     },
     {
@@ -108,8 +120,8 @@
     },
     {
       "name": "skipPreCheck",
-      "title": "Check for Readability",
-      "description": "Skipping always shows reader mode, even if there's no readable content.",
+      "title": "Skip Readability Pre-Check",
+      "description": "Skip the readability pre-check and always show reader mode.",
       "type": "checkbox",
       "label": "Skip",
       "default": true,
@@ -126,7 +138,7 @@
     }
   ],
   "dependencies": {
-    "@chrismessina/raycast-logger": "^1.0.0",
+    "@chrismessina/raycast-logger": "^1.2.1",
     "@mozilla/readability": "^0.6.0",
     "@raycast/api": "^1.104.1",
     "@raycast/utils": "^2.2.2",

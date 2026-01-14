@@ -10,10 +10,11 @@ import {
 import { BrowserTab } from "./types/browser";
 import { SummaryStyle } from "./types/summary";
 import { getStyleLabel, buildSummaryPrompt, logSummarySuccess, logSummaryError } from "./utils/summarizer";
-import { getCachedSummary, setCachedSummary } from "./utils/summaryCache";
+import { rewriteArticleTitle } from "./config/prompts";
+import { getCachedSummary, setCachedSummary, getLastSummaryStyle } from "./utils/summaryCache";
 import { getAIConfigForStyle } from "./config/ai";
 import { resolveUrl, isValidUrl } from "./utils/url-resolver";
-import { loadArticleFromUrl } from "./utils/article-loader";
+import { loadArticleFromUrl, loadArticleViaPaywallHopper } from "./utils/article-loader";
 import { ArticleState } from "./types/article";
 import { UrlInputForm } from "./views/UrlInputForm";
 import { BlockedPageView } from "./views/BlockedPageView";
@@ -22,13 +23,9 @@ import { EmptyContentView } from "./views/EmptyContentView";
 import { ArticleDetailView } from "./views/ArticleDetailView";
 import { InactiveTabActions } from "./actions/InactiveTabActions";
 
-type ReaderArguments = {
-  url: string;
-};
-
 const MINIMUM_ARTICLE_LENGTH = 100;
 
-export default function Command(props: LaunchProps<{ arguments: ReaderArguments }>) {
+export default function Command(props: LaunchProps<{ arguments: Arguments.Open }>) {
   const preferences = getPreferenceValues<Preferences.Open>();
   const canAccessAI = environment.canAccess(AI);
   const shouldShowSummary = canAccessAI && preferences.enableAISummary;
@@ -72,6 +69,28 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   // Refs
   const fetchStartedRef = useRef(false);
   const toastRef = useRef<Toast | null>(null);
+  const statusToastRef = useRef<Toast | null>(null);
+
+  // Status update callback for paywall bypass progress
+  const handleStatusUpdate = useCallback(async (message: string) => {
+    if (!statusToastRef.current) {
+      statusToastRef.current = await showToast({
+        style: Toast.Style.Animated,
+        title: "Bypassing paywall...",
+        message,
+      });
+    } else {
+      statusToastRef.current.message = message;
+    }
+  }, []);
+
+  // Clear status toast when loading completes
+  const clearStatusToast = useCallback(() => {
+    if (statusToastRef.current) {
+      statusToastRef.current.hide();
+      statusToastRef.current = null;
+    }
+  }, []);
 
   // Get AI config based on current summary style
   const aiConfig = getAIConfigForStyle(summaryStyle);
@@ -95,10 +114,23 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         const durationMs = summaryStartTime ? Date.now() - summaryStartTime : undefined;
         logSummaryError(summaryStyle, err.message, durationMs);
 
+        // Sanitize error message - extract HTTP status if present, otherwise show generic message
+        let userMessage = err.message;
+        const httpStatusMatch = err.message.match(/HTTP Status:\s*(\d+)/);
+        if (httpStatusMatch) {
+          const statusCode = httpStatusMatch[1];
+          userMessage =
+            statusCode === "503"
+              ? "AI service temporarily unavailable. Please try again."
+              : `AI service error (HTTP ${statusCode}). Please try again.`;
+        } else if (err.message.includes("<!DOCTYPE") || err.message.includes("<html")) {
+          userMessage = "AI service error. Please try again.";
+        }
+
         await showToast({
           style: Toast.Style.Failure,
           title: "Failed to generate summary",
-          message: err.message,
+          message: userMessage,
         });
       }
     },
@@ -154,46 +186,97 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     [article, preferences.translationLanguage],
   );
 
-  // Process article loading result
-  const handleLoadResult = useCallback(async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
-    if (result.status === "success") {
-      setArticle(result.article);
-      setBlockedUrl(null);
-      setNotReadableUrl(null);
-      setEmptyContentUrl(null);
-      setError(null);
+  // Handle stopping summarization - reverts to last cached summary or hides block
+  const handleStopSummarizing = useCallback(async () => {
+    // Clear prompt to stop useAI execution
+    setSummaryPrompt("");
 
-      // Show toast when article was retrieved via Paywall Hopper
-      if (result.article.archiveSource) {
-        const sourceLabels: Record<string, string> = {
-          googlebot: "Googlebot bypass",
-          "archive.is": "archive.is",
-          wayback: "Wayback Machine",
-          browser: "browser tab",
-        };
-        const label = sourceLabels[result.article.archiveSource.service] || result.article.archiveSource.service;
-        await showToast({
-          style: Toast.Style.Success,
-          title: "Paywall bypassed",
-          message: `Retrieved via ${label}`,
-        });
-      }
-    } else if (result.status === "blocked") {
-      setBlockedUrl(result.url);
-      setHasBrowserExtension(result.hasBrowserExtension);
-      setFoundTab(result.foundTab);
-      setError(result.error);
-    } else if (result.status === "not-readable") {
-      setNotReadableUrl(result.url);
-      setError(result.error);
-    } else if (result.status === "empty-content") {
-      setEmptyContentUrl(result.url);
-      setError(result.error);
-    } else {
-      setError(result.error);
+    if (!article) {
+      setSummaryStyle(null);
+      return;
     }
-    setIsLoading(false);
-  }, []);
+
+    // Get the last successfully used style from cache
+    const lastStyle = await getLastSummaryStyle(article.url);
+
+    if (lastStyle) {
+      // Revert to the last cached summary
+      const language = lastStyle === "translated" ? preferences.translationLanguage : undefined;
+      const cached = await getCachedSummary(article.url, lastStyle, language);
+
+      if (cached) {
+        setSummaryStyle(lastStyle);
+        setCachedSummaryState(cached);
+      } else {
+        // No cached summary found - hide summary block
+        setSummaryStyle(null);
+        setCachedSummaryState(null);
+      }
+    } else {
+      // No previous style - hide summary block
+      setSummaryStyle(null);
+      setCachedSummaryState(null);
+    }
+
+    // Hide toast
+    if (toastRef.current) {
+      toastRef.current.hide();
+      toastRef.current = null;
+    }
+  }, [article, preferences.translationLanguage]);
+
+  // Process article loading result
+  const handleLoadResult = useCallback(
+    async (result: Awaited<ReturnType<typeof loadArticleFromUrl>>) => {
+      clearStatusToast();
+      if (result.status === "success") {
+        const articleToSet = result.article;
+
+        // Rewrite title if preference enabled and AI available
+        if (preferences.rewriteArticleTitles && canAccessAI) {
+          const rewrittenTitle = await rewriteArticleTitle(articleToSet.title, articleToSet.url);
+          articleToSet.title = rewrittenTitle;
+        }
+
+        setArticle(articleToSet);
+        setBlockedUrl(null);
+        setNotReadableUrl(null);
+        setEmptyContentUrl(null);
+        setError(null);
+
+        // Show toast when article was retrieved via Paywall Hopper
+        if (articleToSet.archiveSource) {
+          const sourceLabels: Record<string, string> = {
+            googlebot: "Googlebot bypass",
+            "archive.is": "archive.is",
+            wayback: "Wayback Machine",
+            browser: "browser tab",
+          };
+          const label = sourceLabels[articleToSet.archiveSource.service] || articleToSet.archiveSource.service;
+          await showToast({
+            style: Toast.Style.Success,
+            title: "Paywall bypassed",
+            message: `Retrieved via ${label}`,
+          });
+        }
+      } else if (result.status === "blocked") {
+        setBlockedUrl(result.url);
+        setHasBrowserExtension(result.hasBrowserExtension);
+        setFoundTab(result.foundTab);
+        setError(result.error);
+      } else if (result.status === "not-readable") {
+        setNotReadableUrl(result.url);
+        setError(result.error);
+      } else if (result.status === "empty-content") {
+        setEmptyContentUrl(result.url);
+        setError(result.error);
+      } else {
+        setError(result.error);
+      }
+      setIsLoading(false);
+    },
+    [clearStatusToast, preferences.rewriteArticleTitles, canAccessAI],
+  );
 
   // Initial article load
   useEffect(() => {
@@ -218,6 +301,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         skipPreCheck: preferences.skipPreCheck,
         enablePaywallHopper: preferences.enablePaywallHopper,
         showArticleImage: preferences.showArticleImage,
+        onStatusUpdate: handleStatusUpdate,
       });
       handleLoadResult(result);
     }
@@ -229,6 +313,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     preferences.enablePaywallHopper,
     preferences.showArticleImage,
     handleLoadResult,
+    handleStatusUpdate,
   ]);
 
   // Auto-trigger summary generation when article loads (if enabled)
@@ -278,7 +363,8 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     const result = await reimportFromBrowserTab(article.url);
 
     if (result.status === "success") {
-      setArticle(result.article);
+      // Preserve the existing title (which may be AI-rewritten) when reimporting
+      setArticle({ ...result.article, title: article.title });
       setSummaryInitialized(false); // Reset to allow new summary generation
       urlLog.log("reimport:complete", { url: article.url });
     } else if (result.status === "tab_inactive") {
@@ -304,7 +390,9 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
     const result = await reimportFromBrowserTab(reimportInactiveTab.url);
 
     if (result.status === "success") {
-      setArticle(result.article);
+      // Preserve the existing title (which may be AI-rewritten) when reimporting
+      const existingTitle = article?.title || result.article.title;
+      setArticle({ ...result.article, title: existingTitle });
       setReimportInactiveTab(null);
       setSummaryInitialized(false);
       urlLog.log("reimport:retry-success", { url: reimportInactiveTab.url });
@@ -336,9 +424,41 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       skipPreCheck: true,
       enablePaywallHopper: preferences.enablePaywallHopper,
       showArticleImage: preferences.showArticleImage,
+      onStatusUpdate: handleStatusUpdate,
     });
     handleLoadResult(result);
-  }, [notReadableUrl, handleLoadResult, preferences.enablePaywallHopper, preferences.showArticleImage]);
+  }, [
+    notReadableUrl,
+    handleLoadResult,
+    preferences.enablePaywallHopper,
+    preferences.showArticleImage,
+    handleStatusUpdate,
+  ]);
+
+  // Handler to try Paywall Hopper directly for known paywalled sites
+  const handleTryPaywallHopper = useCallback(async () => {
+    if (!notReadableUrl) return;
+
+    setIsLoading(true);
+    setNotReadableUrl(null);
+    setError(null);
+
+    urlLog.log("session:try-paywall-hopper", { url: notReadableUrl });
+
+    const result = await loadArticleViaPaywallHopper(notReadableUrl, {
+      showArticleImage: preferences.showArticleImage,
+      onStatusUpdate: handleStatusUpdate,
+    });
+
+    if (result.status === "success") {
+      handleLoadResult(result);
+    } else {
+      // If hopper failed, show error but allow retry
+      setError(result.error);
+      setNotReadableUrl(notReadableUrl);
+      setIsLoading(false);
+    }
+  }, [notReadableUrl, handleLoadResult, preferences.showArticleImage, handleStatusUpdate]);
 
   // Handler for URL form submission
   const handleUrlSubmit = useCallback(
@@ -361,10 +481,17 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
         skipPreCheck: preferences.skipPreCheck,
         enablePaywallHopper: preferences.enablePaywallHopper,
         showArticleImage: preferences.showArticleImage,
+        onStatusUpdate: handleStatusUpdate,
       });
       handleLoadResult(result);
     },
-    [preferences.skipPreCheck, preferences.enablePaywallHopper, preferences.showArticleImage, handleLoadResult],
+    [
+      preferences.skipPreCheck,
+      preferences.enablePaywallHopper,
+      preferences.showArticleImage,
+      handleLoadResult,
+      handleStatusUpdate,
+    ],
   );
 
   // --- Render Logic ---
@@ -384,7 +511,14 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
   }
 
   if (notReadableUrl && error) {
-    return <NotReadableView url={notReadableUrl} error={error} onRetryWithoutCheck={handleRetryWithoutCheck} />;
+    return (
+      <NotReadableView
+        url={notReadableUrl}
+        error={error}
+        onRetryWithoutCheck={handleRetryWithoutCheck}
+        onTryPaywallHopper={handleTryPaywallHopper}
+      />
+    );
   }
 
   if (emptyContentUrl) {
@@ -450,6 +584,7 @@ export default function Command(props: LaunchProps<{ arguments: ReaderArguments 
       shouldShowSummary={shouldShowSummary}
       canAccessAI={canAccessAI}
       onSummarize={handleSummarize}
+      onStopSummarizing={isSummarizing ? handleStopSummarizing : undefined}
       onReimportFromBrowser={hasBrowserExtensionAvailable ? handleReimportFromBrowser : undefined}
     />
   );

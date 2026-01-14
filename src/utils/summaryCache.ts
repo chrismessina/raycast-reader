@@ -17,6 +17,11 @@ interface CachedSummary {
 const CACHE_PREFIX = "summary:";
 
 /**
+ * Cache key prefix for rewritten titles
+ */
+const TITLE_CACHE_PREFIX = "title:";
+
+/**
  * Key for tracking the last summary style used per URL
  */
 const LAST_STYLE_PREFIX = "lastStyle:";
@@ -122,7 +127,16 @@ export async function getLastSummaryStyle(url: string): Promise<SummaryStyle | u
  * Get all cached summaries for a URL (all styles)
  */
 export async function getAllCachedSummaries(url: string): Promise<Map<SummaryStyle, string>> {
-  const styles: SummaryStyle[] = ["overview", "opposite-sides", "five-ws", "eli5", "translated", "entities"];
+  const styles: SummaryStyle[] = [
+    "overview",
+    "raycast-style",
+    "opposite-sides",
+    "five-ws",
+    "eli5",
+    "translated",
+    "entities",
+    "arc-style",
+  ];
 
   const results = new Map<SummaryStyle, string>();
 
@@ -134,4 +148,43 @@ export async function getAllCachedSummaries(url: string): Promise<Map<SummarySty
   }
 
   return results;
+}
+
+/**
+ * Build cache key for rewritten title
+ */
+function buildTitleCacheKey(url: string): string {
+  return `${TITLE_CACHE_PREFIX}${hashUrl(url)}`;
+}
+
+/**
+ * Get cached rewritten title for a URL
+ */
+export async function getCachedTitle(url: string): Promise<string | undefined> {
+  const key = buildTitleCacheKey(url);
+  try {
+    const cached = await LocalStorage.getItem<string>(key);
+    if (cached) {
+      aiLog.log("titleCache:hit", { url });
+      return cached;
+    }
+    aiLog.log("titleCache:miss", { url });
+    return undefined;
+  } catch (error) {
+    aiLog.error("titleCache:error", { url, error: String(error) });
+    return undefined;
+  }
+}
+
+/**
+ * Store rewritten title in cache
+ */
+export async function setCachedTitle(url: string, title: string): Promise<void> {
+  const key = buildTitleCacheKey(url);
+  try {
+    await LocalStorage.setItem(key, title);
+    aiLog.log("titleCache:set", { url, titleLength: title.length });
+  } catch (error) {
+    aiLog.error("titleCache:setError", { url, error: String(error) });
+  }
 }

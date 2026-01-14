@@ -1,32 +1,40 @@
 /**
  * Summary style types for article summarization
  */
-export type SummaryStyle = "overview" | "opposite-sides" | "five-ws" | "eli5" | "translated" | "entities";
+export type SummaryStyle =
+  | "overview"
+  | "opposite-sides"
+  | "five-ws"
+  | "eli5"
+  | "translated"
+  | "entities"
+  | "arc-style"
+  | "raycast-style";
 
 /**
- * Supported languages for translation (ISO 639-1 codes)
+ * Supported languages for translation (BCP 47 locale codes)
  */
 export type SupportedLanguage =
-  | "es"
-  | "fr"
-  | "de"
-  | "it"
-  | "pt"
-  | "ja"
-  | "zh-CN"
-  | "zh-TW"
-  | "ko"
-  | "ru"
-  | "ar"
-  | "hi"
-  | "nl"
-  | "pl"
-  | "sv"
-  | "tr"
-  | "vi"
-  | "th"
-  | "el"
-  | "he";
+  | "es-ES"
+  | "fr-FR"
+  | "de-DE"
+  | "it-IT"
+  | "pt-BR"
+  | "ja-JP"
+  | "zh-Hans"
+  | "zh-Hant"
+  | "ko-KR"
+  | "ru-RU"
+  | "ar-SA"
+  | "hi-IN"
+  | "nl-NL"
+  | "pl-PL"
+  | "sv-SE"
+  | "tr-TR"
+  | "vi-VN"
+  | "th-TH"
+  | "el-GR"
+  | "he-IL";
 
 /**
  * Options for translated summary style

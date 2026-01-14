@@ -1,4 +1,51 @@
+import { AI, environment } from "@raycast/api";
 import { SummaryStyle, TranslationOptions } from "../types/summary";
+import { getCachedTitle, setCachedTitle } from "../utils/summaryCache";
+
+/**
+ * Prompt for rewriting article titles
+ */
+const TITLE_REWRITE_PROMPT = `Rewrite this article title to be concise and easy-to-read.
+
+Rules:
+- Keep it short and clear
+- Preserve the core meaning
+- Remove unnecessary words, filler, or clickbait
+- Do not add quotes around the title
+- Output ONLY the rewritten title, nothing else
+
+Original title: `;
+
+/**
+ * Rewrite an article title using AI
+ * Returns the original title if AI is unavailable or on error
+ */
+export async function rewriteArticleTitle(originalTitle: string, url: string): Promise<string> {
+  if (!environment.canAccess(AI)) {
+    return originalTitle;
+  }
+
+  const cached = await getCachedTitle(url);
+  if (cached) {
+    return cached;
+  }
+
+  try {
+    const rewritten = await AI.ask(TITLE_REWRITE_PROMPT + originalTitle, {
+      model: AI.Model["OpenAI_GPT-5.1_Instant"],
+      creativity: "low",
+    });
+
+    const cleanTitle = rewritten.trim();
+    if (cleanTitle) {
+      await setCachedTitle(url, cleanTitle);
+      return cleanTitle;
+    }
+    return originalTitle;
+  } catch {
+    return originalTitle;
+  }
+}
 
 /**
  * Prompt configuration for each summary style
@@ -34,6 +81,26 @@ Format your response EXACTLY like this:
 - [key point 1]
 - [key point 2]
 - [key point 3]`,
+  },
+
+  "arc-style": {
+    label: "Arc-style",
+    buildPrompt: (context) => `${context}
+The reader opened a webpage that's too long for them to read right now.
+
+You will:
+1. Read the webpage info provided above.
+2. Write bullet points providing the most important information and details that they most likely want to know about right now.
+
+For any given page, write at least three bullet points, but try to write more if you can.
+Write the summary from the point of view of the author of the webpage and capture the tone and perspective of the author.
+Your summary should be fact-filled and SPECIFIC, providing information like prices, review sentiment, dates, addresses, times, instructions, ingredients, top news stories, amounts, timelines, characters, answers, features, comparisons, shipping times.
+Admit when you're unsure or don't know how to summarize, and never make a statement without providing a fact or instance to back it up.
+Do NOT repeat text or concepts in your summary.
+If the webpage is for a recipe, first describe the style and type of dish this is and then provide exact steps for the preparation and cooking instructions. List all ingredients including exact measurements and amounts. Also note number of servings and cooking or preparation times.
+If the page is for a restaurant, write a brief description of why it is notable, write a list of what's on the menu and provide opening times, addresses, and contact details.
+
+Format your response EXACTLY as bullet points with clear, specific information. Start immediately with bullet points - do not include any introductory text or paragraphs. Provide 4-7 key points, but no less than three. Don't summarize what's already covered by the webpage title.`,
   },
 
   "opposite-sides": {
@@ -74,7 +141,29 @@ Format your response as a simple, friendly explanation in 2-3 short paragraphs.`
   translated: {
     label: "Translated Overview",
     buildPrompt: (context, options) => {
-      const lang = options?.language || "Spanish";
+      const LANGUAGE_NAMES: Record<string, string> = {
+        "es-ES": "Spanish",
+        "fr-FR": "French",
+        "de-DE": "German",
+        "it-IT": "Italian",
+        "pt-BR": "Portuguese",
+        "ja-JP": "Japanese",
+        "zh-Hans": "Chinese (Simplified)",
+        "zh-Hant": "Chinese (Traditional)",
+        "ko-KR": "Korean",
+        "ru-RU": "Russian",
+        "ar-SA": "Arabic",
+        "hi-IN": "Hindi",
+        "nl-NL": "Dutch",
+        "pl-PL": "Polish",
+        "sv-SE": "Swedish",
+        "tr-TR": "Turkish",
+        "vi-VN": "Vietnamese",
+        "th-TH": "Thai",
+        "el-GR": "Greek",
+        "he-IL": "Hebrew",
+      };
+      const lang = options?.language ? LANGUAGE_NAMES[options.language] || options.language : "Spanish";
       const level = options?.level || "intermediate";
       return `${context}
 
@@ -106,6 +195,26 @@ Format your response EXACTLY like this:
 - **[Entity]:** [brief context]
 
 If a category has no relevant entities, you may omit it.`,
+  },
+
+  "raycast-style": {
+    label: "Raycast-style",
+    buildPrompt: (context) => `${context}
+
+Summarize this article with the following format:
+[one to two sentence summary with the most important information]
+
+### Key Takeaways
+
+- [key takeaway 1]
+- [key takeaway 2]
+- [key takeaway 3]
+
+Rules:
+- ALWAYS capture the tone, perspective, and POV of the author
+- NEVER add information not present in the article
+- Keep bullet points as short as possible
+- Provide EXACTLY three key takeaways`,
   },
 };
 

@@ -5,6 +5,8 @@ import { getStyleLabel } from "../utils/summarizer";
 
 export const SUMMARY_STYLES: { style: SummaryStyle; icon: Icon }[] = [
   { style: "overview", icon: Icon.List },
+  { style: "raycast-style", icon: Icon.RaycastLogoPos },
+  { style: "arc-style", icon: Icon.Stars },
   { style: "opposite-sides", icon: Icon.Switch },
   { style: "five-ws", icon: Icon.QuestionMark },
   { style: "eli5", icon: Icon.SpeechBubble },
@@ -17,7 +19,9 @@ interface ArticleActionsProps {
   markdown: string;
   currentSummary: string | null;
   canAccessAI: boolean;
+  isSummarizing?: boolean;
   onSummarize: (style: SummaryStyle) => void;
+  onStopSummarizing?: () => void;
   onReimportFromBrowser?: () => void;
   archiveSource?: ArchiveSource;
 }
@@ -27,15 +31,20 @@ export function ArticleActions({
   markdown,
   currentSummary,
   canAccessAI,
+  isSummarizing,
   onSummarize,
+  onStopSummarizing,
   onReimportFromBrowser,
   archiveSource,
 }: ArticleActionsProps) {
   return (
     <ActionPanel>
+      {isSummarizing && onStopSummarizing && (
+        <Action title="Stop Summarizing" icon={Icon.Stop} onAction={onStopSummarizing} />
+      )}
       {canAccessAI && (
         <ActionPanel.Submenu
-          title={currentSummary ? "Regenerate Summary…" : "Summarize…"}
+          title={currentSummary ? "Change Summary Style" : "Summarize…"}
           icon={Icon.Stars}
           shortcut={{ modifiers: ["cmd"], key: "s" }}
         >
