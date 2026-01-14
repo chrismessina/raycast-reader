@@ -190,6 +190,9 @@ export function formatArticle(title: string, content: string, options?: FormatAr
 function formatArchiveAnnotation(source: ArchiveAnnotation): string | null {
   const serviceLabels: Record<string, string> = {
     googlebot: "Googlebot bypass",
+    bingbot: "Bingbot bypass",
+    "social-referrer": "Social media referrer",
+    wallhopper: "WallHopper",
     "archive.is": "archive.is",
     wayback: "Wayback Machine",
     browser: "browser tab",
