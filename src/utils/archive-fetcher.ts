@@ -13,6 +13,12 @@ export const ARCHIVE_IS_TIMEOUT_MS = 45000;
 /** Timeout for Wayback Machine requests */
 export const WAYBACK_TIMEOUT_MS = 30000;
 
+/** Alternative archive.is domains to try when rate limited */
+const ARCHIVE_IS_DOMAINS = ["archive.is", "archive.today", "archive.ph"];
+
+/** Regex pattern to extract timestamp from archive.is URLs */
+const ARCHIVE_TIMESTAMP_PATTERN = /archive\.(?:is|today|ph)\/(\d{4}\.\d{2}\.\d{2}-\d+)/;
+
 /**
  * Result from an archive fetch attempt
  */
@@ -51,94 +57,157 @@ interface WaybackAvailabilityResponse {
 export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResult> {
   paywallLog.log("bypass:archive-is:start", { url });
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), ARCHIVE_IS_TIMEOUT_MS);
+  // Try each archive.is domain in sequence
+  for (let i = 0; i < ARCHIVE_IS_DOMAINS.length; i++) {
+    const domain = ARCHIVE_IS_DOMAINS[i];
+    const isLastDomain = i === ARCHIVE_IS_DOMAINS.length - 1;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), ARCHIVE_IS_TIMEOUT_MS);
 
-    // archive.is/newest/{url} redirects to the most recent snapshot
-    const archiveRequestUrl = `https://archive.is/newest/${encodeURIComponent(url)}`;
+      // archive.is/newest/{url} redirects to the most recent snapshot
+      const archiveRequestUrl = `https://${domain}/newest/${encodeURIComponent(url)}`;
 
-    const response = await fetch(archiveRequestUrl, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-    });
-
-    clearTimeout(timeoutId);
-
-    // Check if we got redirected to an actual archive page
-    // archive.is URLs look like: https://archive.is/XXXXX or https://archive.is/2024/...
-    const finalUrl = response.url;
-    const isArchivePage = finalUrl.includes("archive.is/") && !finalUrl.includes("/newest/");
-
-    if (!response.ok) {
-      paywallLog.log("bypass:archive-is:failed", {
-        url,
-        statusCode: response.status,
-        reason: `HTTP ${response.status}`,
+      const response = await fetch(archiveRequestUrl, {
+        signal: controller.signal,
+        redirect: "follow",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+        },
       });
-      return {
-        success: false,
-        service: "archive.is",
-        error: `Archive.is returned HTTP ${response.status}`,
-      };
-    }
 
-    if (!isArchivePage) {
-      // No archived version found - archive.is returns a search page or error
-      paywallLog.log("bypass:archive-is:failed", {
+      clearTimeout(timeoutId);
+
+      // Check if we got redirected to an actual archive page
+      // archive.is URLs look like: https://archive.is/XXXXX or https://archive.is/2024/...
+      const finalUrl = response.url;
+      const isArchivePage =
+        (finalUrl.includes("archive.is/") || finalUrl.includes("archive.today/") || finalUrl.includes("archive.ph/")) &&
+        !finalUrl.includes("/newest/");
+
+      // If we got rate limited (429) but were redirected to an archive page, try fetching it directly once
+      if (!response.ok && response.status === 429 && isArchivePage) {
+        try {
+          const directController = new AbortController();
+          const directTimeoutId = setTimeout(() => directController.abort(), ARCHIVE_IS_TIMEOUT_MS);
+
+          const directResponse = await fetch(finalUrl, {
+            signal: directController.signal,
+            redirect: "follow",
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "en-US,en;q=0.5",
+            },
+          });
+
+          clearTimeout(directTimeoutId);
+
+          if (directResponse.ok) {
+            const html = await directResponse.text();
+            const timestampMatch = finalUrl.match(ARCHIVE_TIMESTAMP_PATTERN);
+            const timestamp = timestampMatch ? timestampMatch[1] : undefined;
+
+            paywallLog.log("bypass:archive-is:success-direct-fetch", {
+              url,
+              archiveUrl: finalUrl,
+              contentLength: html.length,
+              timestamp,
+              domain,
+            });
+
+            return {
+              success: true,
+              html,
+              archiveUrl: finalUrl,
+              service: "archive.is",
+              timestamp,
+            };
+          }
+        } catch {
+          // Direct fetch failed, continue to next domain
+        }
+        // If direct fetch failed, continue to next domain
+        continue;
+      }
+
+      if (!response.ok) {
+        // If this is the last domain, return error
+        if (isLastDomain) {
+          return {
+            success: false,
+            service: "archive.is",
+            error: `Archive.is returned HTTP ${response.status}`,
+          };
+        }
+        // Otherwise, try next domain
+        continue;
+      }
+
+      if (!isArchivePage) {
+        // No archived version found - archive.is returns a search page or error
+        // If this is the last domain, return error
+        if (isLastDomain) {
+          return {
+            success: false,
+            service: "archive.is",
+            error: "No archived version found on archive.is",
+          };
+        }
+        // Otherwise, try next domain
+        continue;
+      }
+
+      // Success! We got redirected to an archive page and response is OK
+      const html = await response.text();
+
+      // Extract timestamp from archive.is page if available
+      // Archive.is pages often have a timestamp in the URL like /2024.01.03-123456/
+      const timestampMatch = finalUrl.match(ARCHIVE_TIMESTAMP_PATTERN);
+      const timestamp = timestampMatch ? timestampMatch[1] : undefined;
+
+      paywallLog.log("bypass:archive-is:success", {
         url,
-        reason: "No archived version found",
-        finalUrl,
+        archiveUrl: finalUrl,
+        contentLength: html.length,
+        timestamp,
+        domain,
       });
+
       return {
-        success: false,
+        success: true,
+        html,
+        archiveUrl: finalUrl,
         service: "archive.is",
-        error: "No archived version found on archive.is",
+        timestamp,
       };
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      const isTimeout = err instanceof Error && err.name === "AbortError";
+
+      // If this is the last domain, return error
+      if (isLastDomain) {
+        return {
+          success: false,
+          service: "archive.is",
+          error: isTimeout ? "Archive.is request timed out" : reason,
+        };
+      }
+      // Otherwise, try next domain
+      continue;
     }
-
-    const html = await response.text();
-
-    // Extract timestamp from archive.is page if available
-    // Archive.is pages often have a timestamp in the URL like /2024.01.03-123456/
-    const timestampMatch = finalUrl.match(/archive\.is\/(\d{4}\.\d{2}\.\d{2}-\d+)/);
-    const timestamp = timestampMatch ? timestampMatch[1] : undefined;
-
-    paywallLog.log("bypass:archive-is:success", {
-      url,
-      archiveUrl: finalUrl,
-      contentLength: html.length,
-      timestamp,
-    });
-
-    return {
-      success: true,
-      html,
-      archiveUrl: finalUrl,
-      service: "archive.is",
-      timestamp,
-    };
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : "Unknown error";
-    const isTimeout = err instanceof Error && err.name === "AbortError";
-
-    paywallLog.log("bypass:archive-is:failed", {
-      url,
-      reason: isTimeout ? "Request timed out" : reason,
-    });
-
-    return {
-      success: false,
-      service: "archive.is",
-      error: isTimeout ? "Archive.is request timed out" : reason,
-    };
   }
+
+  // All domains failed
+  return {
+    success: false,
+    service: "archive.is",
+    error: "All archive.is domains failed",
+  };
 }
 
 /**
