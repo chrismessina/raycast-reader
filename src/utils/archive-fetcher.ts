@@ -6,6 +6,7 @@
  */
 
 import { paywallLog } from "./logger";
+import { isValidUrl } from "./url-resolver";
 
 /** Timeout for archive.is requests (can be slow) */
 export const ARCHIVE_IS_TIMEOUT_MS = 45000;
@@ -13,11 +14,29 @@ export const ARCHIVE_IS_TIMEOUT_MS = 45000;
 /** Timeout for Wayback Machine requests */
 export const WAYBACK_TIMEOUT_MS = 30000;
 
+/** Standard browser headers for archive requests */
+const BROWSER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.5",
+};
+
 /** Alternative archive.is domains to try when rate limited */
 const ARCHIVE_IS_DOMAINS = ["archive.is", "archive.today", "archive.ph"];
 
 /** Regex pattern to extract timestamp from archive.is URLs */
-const ARCHIVE_TIMESTAMP_PATTERN = /archive\.(?:is|today|ph)\/(\d{4}\.\d{2}\.\d{2}-\d+)/;
+const ARCHIVE_TIMESTAMP_PATTERN = /archive\.(?:is|today|ph)\/([0-9]{4}\.[0-9]{2}\.[0-9]{2}-[0-9]+)/;
+
+/**
+ * Check if a URL is an archive.is page (not a search/newest redirect)
+ */
+function isArchiveIsPage(url: string): boolean {
+  return (
+    (url.includes("archive.is/") || url.includes("archive.today/") || url.includes("archive.ph/")) &&
+    !url.includes("/newest/")
+  );
+}
 
 /**
  * Result from an archive fetch attempt
@@ -55,57 +74,49 @@ interface WaybackAvailabilityResponse {
  * @returns ArchiveFetchResult with HTML content and archive URL
  */
 export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResult> {
+  if (!isValidUrl(url)) {
+    return {
+      success: false,
+      service: "archive.is",
+      error: "Invalid URL provided",
+    };
+  }
+
   paywallLog.log("bypass:archive-is:start", { url });
 
   // Try each archive.is domain in sequence
   for (let i = 0; i < ARCHIVE_IS_DOMAINS.length; i++) {
     const domain = ARCHIVE_IS_DOMAINS[i];
     const isLastDomain = i === ARCHIVE_IS_DOMAINS.length - 1;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), ARCHIVE_IS_TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), ARCHIVE_IS_TIMEOUT_MS);
 
+    try {
       // archive.is/newest/{url} redirects to the most recent snapshot
       const archiveRequestUrl = `https://${domain}/newest/${encodeURIComponent(url)}`;
 
       const response = await fetch(archiveRequestUrl, {
         signal: controller.signal,
         redirect: "follow",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-        },
+        headers: BROWSER_HEADERS,
       });
-
-      clearTimeout(timeoutId);
 
       // Check if we got redirected to an actual archive page
       // archive.is URLs look like: https://archive.is/XXXXX or https://archive.is/2024/...
       const finalUrl = response.url;
-      const isArchivePage =
-        (finalUrl.includes("archive.is/") || finalUrl.includes("archive.today/") || finalUrl.includes("archive.ph/")) &&
-        !finalUrl.includes("/newest/");
+      const isArchivePage = isArchiveIsPage(finalUrl);
 
       // If we got rate limited (429) but were redirected to an archive page, try fetching it directly once
       if (!response.ok && response.status === 429 && isArchivePage) {
-        try {
-          const directController = new AbortController();
-          const directTimeoutId = setTimeout(() => directController.abort(), ARCHIVE_IS_TIMEOUT_MS);
+        const directController = new AbortController();
+        const directTimeoutId = setTimeout(() => directController.abort(), ARCHIVE_IS_TIMEOUT_MS);
 
+        try {
           const directResponse = await fetch(finalUrl, {
             signal: directController.signal,
             redirect: "follow",
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              "Accept-Language": "en-US,en;q=0.5",
-            },
+            headers: BROWSER_HEADERS,
           });
-
-          clearTimeout(directTimeoutId);
 
           if (directResponse.ok) {
             const html = await directResponse.text();
@@ -128,8 +139,15 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
               timestamp,
             };
           }
-        } catch {
-          // Direct fetch failed, continue to next domain
+        } catch (directErr) {
+          paywallLog.log("bypass:archive-is:direct-fetch-failed", {
+            url,
+            archiveUrl: finalUrl,
+            domain,
+            reason: directErr instanceof Error ? directErr.message : "Unknown error",
+          });
+        } finally {
+          clearTimeout(directTimeoutId);
         }
         // If direct fetch failed, continue to next domain
         continue;
@@ -199,6 +217,8 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
       }
       // Otherwise, try next domain
       continue;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -218,14 +238,25 @@ export async function fetchFromArchiveIs(url: string): Promise<ArchiveFetchResul
  * @returns ArchiveFetchResult with HTML content and archive URL
  */
 export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult> {
+  if (!isValidUrl(url)) {
+    return {
+      success: false,
+      service: "wayback",
+      error: "Invalid URL provided",
+    };
+  }
+
   paywallLog.log("bypass:wayback:start", { url });
+
+  const availabilityController = new AbortController();
+  const availabilityTimeoutId = setTimeout(() => availabilityController.abort(), 10000);
+
+  let snapshotUrl: string;
+  let timestamp: string;
 
   try {
     // Step 1: Check availability via the Wayback API
     const availabilityUrl = `https://archive.org/wayback/available?url=${encodeURIComponent(url)}`;
-
-    const availabilityController = new AbortController();
-    const availabilityTimeoutId = setTimeout(() => availabilityController.abort(), 10000);
 
     const availabilityResponse = await fetch(availabilityUrl, {
       signal: availabilityController.signal,
@@ -233,8 +264,6 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
         Accept: "application/json",
       },
     });
-
-    clearTimeout(availabilityTimeoutId);
 
     if (!availabilityResponse.ok) {
       paywallLog.log("bypass:wayback:failed", {
@@ -263,30 +292,42 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
     }
 
     const snapshot = availabilityData.archived_snapshots.closest;
-    const snapshotUrl = snapshot.url;
-    const timestamp = snapshot.timestamp;
+    snapshotUrl = snapshot.url;
+    timestamp = snapshot.timestamp;
 
     paywallLog.log("bypass:wayback:snapshot-found", {
       url,
       snapshotUrl,
       timestamp,
     });
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : "Unknown error";
+    const isTimeout = err instanceof Error && err.name === "AbortError";
 
-    // Step 2: Fetch the actual snapshot content
-    const contentController = new AbortController();
-    const contentTimeoutId = setTimeout(() => contentController.abort(), WAYBACK_TIMEOUT_MS);
+    paywallLog.log("bypass:wayback:failed", {
+      url,
+      reason: isTimeout ? "Availability check timed out" : reason,
+    });
 
+    return {
+      success: false,
+      service: "wayback",
+      error: isTimeout ? "Wayback availability check timed out" : reason,
+    };
+  } finally {
+    clearTimeout(availabilityTimeoutId);
+  }
+
+  // Step 2: Fetch the actual snapshot content
+  const contentController = new AbortController();
+  const contentTimeoutId = setTimeout(() => contentController.abort(), WAYBACK_TIMEOUT_MS);
+
+  try {
     const contentResponse = await fetch(snapshotUrl, {
       signal: contentController.signal,
       redirect: "follow",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
+      headers: BROWSER_HEADERS,
     });
-
-    clearTimeout(contentTimeoutId);
 
     if (!contentResponse.ok) {
       paywallLog.log("bypass:wayback:failed", {
@@ -330,14 +371,17 @@ export async function fetchFromWayback(url: string): Promise<ArchiveFetchResult>
 
     paywallLog.log("bypass:wayback:failed", {
       url,
-      reason: isTimeout ? "Request timed out" : reason,
+      snapshotUrl,
+      reason: isTimeout ? "Snapshot fetch timed out" : reason,
     });
 
     return {
       success: false,
       service: "wayback",
-      error: isTimeout ? "Wayback Machine request timed out" : reason,
+      error: isTimeout ? "Wayback snapshot fetch timed out" : reason,
     };
+  } finally {
+    clearTimeout(contentTimeoutId);
   }
 }
 
