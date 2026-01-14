@@ -5,6 +5,7 @@ interface NotReadableViewProps {
   url: string;
   error: string;
   onRetryWithoutCheck: () => void;
+  onTryPaywallHopper?: () => void;
 }
 
 function buildNotReadableMarkdown(error: string): string {
@@ -19,10 +20,19 @@ ${error}
 *Note: Bypassing the check may result in poorly formatted content or extraction failures.*`;
 }
 
-export function NotReadableView({ url, error, onRetryWithoutCheck }: NotReadableViewProps) {
+export function NotReadableView({ url, error, onRetryWithoutCheck, onTryPaywallHopper }: NotReadableViewProps) {
   const markdown = buildNotReadableMarkdown(error);
 
   return (
-    <Detail markdown={markdown} actions={<NotReadableActions url={url} onRetryWithoutCheck={onRetryWithoutCheck} />} />
+    <Detail
+      markdown={markdown}
+      actions={
+        <NotReadableActions
+          url={url}
+          onRetryWithoutCheck={onRetryWithoutCheck}
+          onTryPaywallHopper={onTryPaywallHopper}
+        />
+      }
+    />
   );
 }

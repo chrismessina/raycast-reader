@@ -175,4 +175,3 @@ export function formatArticle(title: string, content: string, options?: FormatAr
     title,
   };
 }
-
