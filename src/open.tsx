@@ -248,6 +248,9 @@ export default function Command(props: LaunchProps<{ arguments: Arguments.Open }
         if (articleToSet.archiveSource) {
           const sourceLabels: Record<string, string> = {
             googlebot: "Googlebot bypass",
+            bingbot: "Bingbot bypass",
+            "social-referrer": "Social media referrer",
+            wallhopper: "WallHopper",
             "archive.is": "archive.is",
             wayback: "Wayback Machine",
             browser: "browser tab",
