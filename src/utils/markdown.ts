@@ -141,7 +141,7 @@ export interface FormattedArticle {
 
 export interface ArchiveAnnotation {
   /** Which service provided the content */
-  service: "googlebot" | "archive.is" | "wayback" | "browser" | "none";
+  service: "googlebot" | "bingbot" | "social-referrer" | "wallhopper" | "archive.is" | "wayback" | "browser" | "none";
   /** URL of the archived version (if applicable) */
   url?: string;
   /** Timestamp of the archived version */
@@ -169,14 +169,6 @@ export function formatArticle(title: string, content: string, options?: FormatAr
     contentMarkdown = `![](${options.image})\n\n${contentMarkdown}`;
   }
 
-  // Add archive source annotation if content was retrieved via Paywall Hopper
-  if (options?.archiveSource && options.archiveSource.service !== "none") {
-    const annotation = formatArchiveAnnotation(options.archiveSource);
-    if (annotation) {
-      contentMarkdown = `${annotation}\n\n${contentMarkdown}`;
-    }
-  }
-
   // Return just the body content - title and metadata will be added by the component
   return {
     markdown: contentMarkdown,
@@ -184,34 +176,3 @@ export function formatArticle(title: string, content: string, options?: FormatAr
   };
 }
 
-/**
- * Formats an archive source annotation for display
- */
-function formatArchiveAnnotation(source: ArchiveAnnotation): string | null {
-  const serviceLabels: Record<string, string> = {
-    googlebot: "Googlebot bypass",
-    bingbot: "Bingbot bypass",
-    "social-referrer": "Social media referrer",
-    wallhopper: "WallHopper",
-    "archive.is": "archive.is",
-    wayback: "Wayback Machine",
-    browser: "browser tab",
-  };
-
-  const label = serviceLabels[source.service];
-  if (!label) return null;
-
-  let annotation: string;
-
-  if (source.url) {
-    annotation = `> 📦 [**Archived Copy**](${source.url}) — Retrieved from [${label}](${source.url})`;
-  } else {
-    annotation = `> 📦 **Archived Copy** — Retrieved via ${label}`;
-  }
-
-  if (source.timestamp) {
-    annotation += ` (${source.timestamp})`;
-  }
-
-  return annotation;
-}
