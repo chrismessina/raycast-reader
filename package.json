@@ -5,7 +5,9 @@
   "description": "Read the web distraction-free in Raycast.",
   "icon": "reader-icon.png",
   "author": "chrismessina",
-  "contributors": ["heytommy"],
+  "contributors": [
+    "heytommy"
+  ],
   "platforms": [
     "macOS",
     "Windows"
@@ -61,14 +63,38 @@
       "default": "overview",
       "required": false,
       "data": [
-        { "title": "Overview", "value": "overview" },
-        { "title": "Raycast-style", "value": "raycast-style" },
-        { "title": "Arc-style", "value": "arc-style" },
-        { "title": "Opposing Sides", "value": "opposite-sides" },
-        { "title": "The 5 Ws", "value": "five-ws" },
-        { "title": "Explain Like I'm 5", "value": "eli5" },
-        { "title": "Translated Overview", "value": "translated" },
-        { "title": "People, Places & Things", "value": "entities" }
+        {
+          "title": "Overview",
+          "value": "overview"
+        },
+        {
+          "title": "Raycast-style",
+          "value": "raycast-style"
+        },
+        {
+          "title": "Arc-style",
+          "value": "arc-style"
+        },
+        {
+          "title": "Opposing Sides",
+          "value": "opposite-sides"
+        },
+        {
+          "title": "The 5 Ws",
+          "value": "five-ws"
+        },
+        {
+          "title": "Explain Like I'm 5",
+          "value": "eli5"
+        },
+        {
+          "title": "Translated Overview",
+          "value": "translated"
+        },
+        {
+          "title": "People, Places & Things",
+          "value": "entities"
+        }
       ]
     },
     {
@@ -79,26 +105,86 @@
       "default": "es-ES",
       "required": false,
       "data": [
-        { "title": "🇪🇸 Spanish", "value": "es-ES" },
-        { "title": "🇫🇷 French", "value": "fr-FR" },
-        { "title": "🇩🇪 German", "value": "de-DE" },
-        { "title": "🇮🇹 Italian", "value": "it-IT" },
-        { "title": "🇧🇷 Portuguese", "value": "pt-BR" },
-        { "title": "🇯🇵 Japanese", "value": "ja-JP" },
-        { "title": "🇨🇳 Chinese (Simplified)", "value": "zh-Hans" },
-        { "title": "🇹🇼 Chinese (Traditional)", "value": "zh-Hant" },
-        { "title": "🇰🇷 Korean", "value": "ko-KR" },
-        { "title": "🇷🇺 Russian", "value": "ru-RU" },
-        { "title": "🇸🇦 Arabic", "value": "ar-SA" },
-        { "title": "🇮🇳 Hindi", "value": "hi-IN" },
-        { "title": "🇳🇱 Dutch", "value": "nl-NL" },
-        { "title": "🇵🇱 Polish", "value": "pl-PL" },
-        { "title": "🇸🇪 Swedish", "value": "sv-SE" },
-        { "title": "🇹🇷 Turkish", "value": "tr-TR" },
-        { "title": "🇻🇳 Vietnamese", "value": "vi-VN" },
-        { "title": "🇹🇭 Thai", "value": "th-TH" },
-        { "title": "🇬🇷 Greek", "value": "el-GR" },
-        { "title": "🇮🇱 Hebrew", "value": "he-IL" }
+        {
+          "title": "🇪🇸 Spanish",
+          "value": "es-ES"
+        },
+        {
+          "title": "🇫🇷 French",
+          "value": "fr-FR"
+        },
+        {
+          "title": "🇩🇪 German",
+          "value": "de-DE"
+        },
+        {
+          "title": "🇮🇹 Italian",
+          "value": "it-IT"
+        },
+        {
+          "title": "🇧🇷 Portuguese",
+          "value": "pt-BR"
+        },
+        {
+          "title": "🇯🇵 Japanese",
+          "value": "ja-JP"
+        },
+        {
+          "title": "🇨🇳 Chinese (Simplified)",
+          "value": "zh-Hans"
+        },
+        {
+          "title": "🇹🇼 Chinese (Traditional)",
+          "value": "zh-Hant"
+        },
+        {
+          "title": "🇰🇷 Korean",
+          "value": "ko-KR"
+        },
+        {
+          "title": "🇷🇺 Russian",
+          "value": "ru-RU"
+        },
+        {
+          "title": "🇸🇦 Arabic",
+          "value": "ar-SA"
+        },
+        {
+          "title": "🇮🇳 Hindi",
+          "value": "hi-IN"
+        },
+        {
+          "title": "🇳🇱 Dutch",
+          "value": "nl-NL"
+        },
+        {
+          "title": "🇵🇱 Polish",
+          "value": "pl-PL"
+        },
+        {
+          "title": "🇸🇪 Swedish",
+          "value": "sv-SE"
+        },
+        {
+          "title": "🇹🇷 Turkish",
+          "value": "tr-TR"
+        },
+        {
+          "title": "🇻🇳 Vietnamese",
+          "value": "vi-VN"
+        },
+        {
+          "title": "🇹🇭 Thai",
+          "value": "th-TH"
+        },
+        {
+          "title": "🇬🇷 Greek",
+          "value": "el-GR"
+        },
+        {
+          "title": "🇮🇱 Hebrew",
+          "value": "he-IL"
+        }
       ]
     },
     {
@@ -153,6 +239,7 @@
     "@types/react": "19.0.10",
     "@types/turndown": "^5.0.6",
     "eslint": "^9.22.0",
+    "markdownlint-cli": "^0.47.0",
     "prettier": "^3.5.3",
     "typescript": "^5.9.3"
   },

@@ -337,6 +337,23 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
+  // Le Monde
+  [
+    /^(.*\.)?lemonde\.fr$/i,
+    {
+      name: "Le Monde",
+      articleSelector: ".article__content",
+      removeSelectors: [
+        ".reading-mode-only",
+        ".capping",
+        ".article__header",
+        ".ds-header",
+        ".ds-article-status",
+        ".ds-footer",
+      ],
+    },
+  ],
+
   // Mashable
   [
     /^(.*\.)?mashable\.com$/i,

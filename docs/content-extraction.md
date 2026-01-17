@@ -19,10 +19,12 @@ Reader uses a multi-stage pipeline to extract clean article content from web pag
 These techniques are based on analysis of two mature reader mode implementations:
 
 ### Safari Reader Mode
+
 - **Source**: [ReaderArticleFinder.js](https://github.com/dm-zharov/safari-readability/blob/main/ReaderArticleFinder.js)
 - **Key techniques**: Score-based content detection, schema.org detection, site quirks list, lazy image handling
 
 ### Reader View (Browser Extension)
+
 - **Source**: [index.js](https://github.com/rNeomy/reader-view/blob/master/v3/data/reader/index.js)
 - **Key techniques**: Turndown integration, multiple article detection, design mode
 
@@ -63,6 +65,7 @@ These elements are protected from removal even if they match negative patterns:
 #### Schema.org Detection
 
 The cleaner detects schema.org article markup:
+
 - `[itemprop="articleBody"]`
 - `[itemtype*="schema.org/Article"]`
 - `[itemtype*="schema.org/NewsArticle"]`
@@ -153,7 +156,7 @@ After Readability extraction, Turndown converts HTML to Markdown. Additional ele
 
 ### 5. Integration Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Input HTML                                │
 └─────────────────────────────────────────────────────────────────┘
