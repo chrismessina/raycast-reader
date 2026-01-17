@@ -239,7 +239,6 @@
     "@types/react": "19.0.10",
     "@types/turndown": "^5.0.6",
     "eslint": "^9.22.0",
-    "markdownlint-cli": "^0.47.0",
     "prettier": "^3.5.3",
     "typescript": "^5.9.3"
   },
