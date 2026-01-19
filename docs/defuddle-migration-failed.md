@@ -22,16 +22,16 @@ a more modern library designed for the Obsidian Web Clipper.
 
 ### Why Migrate?
 
-| Feature | Current | Defuddle |
-|---------|---------|----------|
-| Dependencies | 4 packages | 1-2 packages |
-| Markdown conversion | Separate (turndown) | Built-in |
-| HTML standardization | Manual | Automatic (footnotes, math, code) |
-| Extractor system | Custom quirks | Structured extractors |
-| Schema.org extraction | Basic | Comprehensive |
-| Mobile style awareness | No | Yes |
-| Retry logic | No | Yes (<200 words triggers retry) |
-| Maintenance | Self-maintained | Active community |
+| Feature                | Current             | Defuddle                          |
+| ---------------------- | ------------------- | --------------------------------- |
+| Dependencies           | 4 packages          | 1-2 packages                      |
+| Markdown conversion    | Separate (turndown) | Built-in                          |
+| HTML standardization   | Manual              | Automatic (footnotes, math, code) |
+| Extractor system       | Custom quirks       | Structured extractors             |
+| Schema.org extraction  | Basic               | Comprehensive                     |
+| Mobile style awareness | No                  | Yes                               |
+| Retry logic            | No                  | Yes (<200 words triggers retry)   |
+| Maintenance            | Self-maintained     | Active community                  |
 
 ---
 
@@ -51,16 +51,16 @@ accepts any standard DOM Document object. We can:
 
 ### DOM APIs Used by Defuddle
 
-| API | linkedom Support | Notes |
-|-----|------------------|-------|
-| `querySelectorAll()` | ✅ Full | Core selector matching |
-| `getElementsByTagName()` | ✅ Full | Element collection |
-| `cloneNode()` | ✅ Full | Document duplication |
-| `createElement()` | ✅ Full | Temporary elements |
-| `getAttribute()`/`setAttribute()` | ✅ Full | Attribute access |
-| `getComputedStyle()` | ⚠️ Limited | Hidden element detection may skip |
-| `getBoundingClientRect()` | ⚠️ Returns zeros | Small image filtering skipped |
-| `styleSheets` | ⚠️ Limited | Mobile style detection may skip |
+| API                               | linkedom Support | Notes                             |
+| --------------------------------- | ---------------- | --------------------------------- |
+| `querySelectorAll()`              | ✅ Full          | Core selector matching            |
+| `getElementsByTagName()`          | ✅ Full          | Element collection                |
+| `cloneNode()`                     | ✅ Full          | Document duplication              |
+| `createElement()`                 | ✅ Full          | Temporary elements                |
+| `getAttribute()`/`setAttribute()` | ✅ Full          | Attribute access                  |
+| `getComputedStyle()`              | ⚠️ Limited       | Hidden element detection may skip |
+| `getBoundingClientRect()`         | ⚠️ Returns zeros | Small image filtering skipped     |
+| `styleSheets`                     | ⚠️ Limited       | Mobile style detection may skip   |
 
 **Impact:** Features using limited APIs will degrade gracefully (skip detection)
 rather than crash. Content extraction will still work.
@@ -125,14 +125,14 @@ npm install defuddle
 Create `src/utils/defuddle-parser.ts`:
 
 ```typescript
-import { Defuddle } from 'defuddle';
-import { parseHTML } from 'linkedom';
-import { parseLog } from './logger';
+import { Defuddle } from "defuddle";
+import { parseHTML } from "linkedom";
+import { parseLog } from "./logger";
 
 export interface DefuddleArticle {
   title: string;
-  content: string;           // HTML content
-  contentMarkdown: string;   // Markdown (built-in!)
+  content: string; // HTML content
+  contentMarkdown: string; // Markdown (built-in!)
   textContent: string;
   excerpt: string;
   byline: string | null;
@@ -150,7 +150,7 @@ export interface DefuddleArticle {
 export function parseWithDefuddle(
   html: string,
   url: string,
-  options?: DefuddleOptions
+  options?: DefuddleOptions,
 ): { success: true; article: DefuddleArticle } | { success: false; error: DefuddleError } {
   const { document } = parseHTML(html);
 
@@ -191,14 +191,14 @@ Modify `src/utils/article-loader.ts`:
 
 For each test URL, compare:
 
-| Metric | Readability | Defuddle | Winner |
-|--------|-------------|----------|--------|
-| Title accuracy | | | |
-| Content completeness | | | |
-| Image preservation | | | |
-| Link functionality | | | |
-| Markdown quality | | | |
-| Parse time | | | |
+| Metric               | Readability | Defuddle | Winner |
+| -------------------- | ----------- | -------- | ------ |
+| Title accuracy       |             |          |        |
+| Content completeness |             |          |        |
+| Image preservation   |             |          |        |
+| Link functionality   |             |          |        |
+| Markdown quality     |             |          |        |
+| Parse time           |             |          |        |
 
 ### Task 2.2: Problem Site Identification
 
@@ -291,15 +291,15 @@ Based on Phase 2 results, create extractors for:
 
 ### Task 5.1: Feature Audit
 
-| Feature | Defuddle Handles? | Action |
-|---------|-------------------|--------|
-| Negative selectors | Via removePartialSelectors | Migrate |
-| Protected selectors | Built-in heuristics | Test & remove |
-| Link density | Built-in | Remove |
-| Lazy images | Unknown | Test, keep if needed |
-| Schema.org | Built-in | Remove |
-| Cookie banners | Via removeSelectors | Migrate |
-| aria-hidden | Built-in | Remove |
+| Feature             | Defuddle Handles?          | Action               |
+| ------------------- | -------------------------- | -------------------- |
+| Negative selectors  | Via removePartialSelectors | Migrate              |
+| Protected selectors | Built-in heuristics        | Test & remove        |
+| Link density        | Built-in                   | Remove               |
+| Lazy images         | Unknown                    | Test, keep if needed |
+| Schema.org          | Built-in                   | Remove               |
+| Cookie banners      | Via removeSelectors        | Migrate              |
+| aria-hidden         | Built-in                   | Remove               |
 
 ### Task 5.2: Keep URL Absolutification
 
@@ -345,13 +345,13 @@ npm uninstall turndown turndown-plugin-gfm  # if Defuddle markdown sufficient
 
 ## Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| linkedom API gaps | Medium | Features degrade gracefully |
-| Defuddle extracts less | High | Keep Readability fallback via preference |
-| Missing site support | Medium | Create local extractors |
-| Markdown quality differs | Medium | Post-process with custom rules |
-| Breaking changes in Defuddle | Low | Pin version, monitor releases |
+| Risk                         | Impact | Mitigation                               |
+| ---------------------------- | ------ | ---------------------------------------- |
+| linkedom API gaps            | Medium | Features degrade gracefully              |
+| Defuddle extracts less       | High   | Keep Readability fallback via preference |
+| Missing site support         | Medium | Create local extractors                  |
+| Markdown quality differs     | Medium | Post-process with custom rules           |
+| Breaking changes in Defuddle | Low    | Pin version, monitor releases            |
 
 ---
 
