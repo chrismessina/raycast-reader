@@ -34,6 +34,22 @@
           "required": false
         }
       ]
+    },
+    {
+      "name": "open-clipboard",
+      "title": "Open Clipboard in Reader Mode",
+      "subtitle": "Reader Mode",
+      "description": "Open URL from clipboard in reader mode",
+      "mode": "view",
+      "disabledByDefault": true
+    },
+    {
+      "name": "open-current-tab",
+      "title": "Open Current Tab in Reader Mode",
+      "subtitle": "Reader Mode",
+      "description": "Open current browser tab in reader mode",
+      "mode": "view",
+      "disabledByDefault": true
     }
   ],
   "preferences": [

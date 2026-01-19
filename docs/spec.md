@@ -1,7 +1,6 @@
 # Reader Raycast Extension
 
 > **Purpose:** Rapid prototype sketch for Claude Opus 4.5 implementation
-
 > **Instructions:** Fill in sections below. Use `[TBD]` for unknowns—Claude will clarify or research.
 
 ---
