@@ -1,4 +1,4 @@
-import { ActionPanel, Action, Icon, Keyboard, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { ActionPanel, Action, Icon, Keyboard, showToast, Toast } from "@raycast/api";
 import { homedir } from "os";
 import { join } from "path";
 import { writeFile, mkdir } from "fs/promises";
@@ -17,10 +17,6 @@ export const SUMMARY_STYLES: { style: SummaryStyle; icon: Icon }[] = [
   { style: "translated", icon: Icon.Globe },
   { style: "entities", icon: Icon.Person },
 ];
-
-interface Preferences {
-  enableAISummary: boolean;
-}
 
 interface ArticleActionsProps {
   articleUrl: string;
@@ -80,8 +76,6 @@ export function ArticleActions({
   onReimportFromBrowser,
   archiveSource,
 }: ArticleActionsProps) {
-  const { enableAISummary } = getPreferenceValues<Preferences>();
-
   const hasSummary = !!currentSummary;
 
   return (
