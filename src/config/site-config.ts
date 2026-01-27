@@ -422,7 +422,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
-
   // Bloomberg
   [
     /^(.*\.)?bloomberg\.com$/i,
