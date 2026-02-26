@@ -1,10 +1,32 @@
+/**
+ * article-loader - Pure async utility for fetching and parsing articles
+ *
+ * This module handles all the "heavy lifting" of article extraction:
+ * fetching HTML, parsing with Readability, paywall bypass, and Markdown conversion.
+ * It is stateless and has no React dependencies.
+ *
+ * Responsibilities:
+ * - Fetching HTML from URLs (via fetcher.ts)
+ * - Parsing with Mozilla Readability (via readability.ts)
+ * - Paywall bypass attempts (via paywall-hopper.ts)
+ * - Browser tab fallback for blocked pages (via browser-extension.ts)
+ * - Converting parsed content to Markdown (via markdown.ts)
+ * - Returning discriminated union results for different outcomes
+ *
+ * Relationship to useArticleReader.ts:
+ * - This module is consumed by the useArticleReader hook
+ * - The hook manages React state; this module handles fetch/parse logic
+ * - Returns LoadArticleResult which the hook interprets to update UI state
+ *
+ * @see src/hooks/useArticleReader.ts for the React state management layer
+ */
+
 import { urlLog, paywallLog } from "./logger";
 import { fetchHtml } from "./fetcher";
 import { parseArticle } from "./readability";
 import { formatArticle } from "./markdown";
 import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
 import { tryBypassPaywall, createArchiveSource, ArchiveSource } from "./paywall-hopper";
-import { ArchiveStatusCallback } from "./archive-fetcher";
 import { detectPaywallInText } from "./paywall-detector";
 import { BrowserTab } from "../types/browser";
 import { ArticleState } from "../types/article";
@@ -23,8 +45,6 @@ interface LoadArticleOptions {
   enablePaywallHopper?: boolean;
   /** Whether to show the article image at the top (default: true) */
   showArticleImage?: boolean;
-  /** Callback for status updates during paywall bypass */
-  onStatusUpdate?: ArchiveStatusCallback;
 }
 
 /**
@@ -43,8 +63,8 @@ export async function loadArticleFromUrl(
   let archiveSource: ArchiveSource | undefined;
 
   if (!fetchResult.success) {
-    // Check if this is a blocked error (403) that could be resolved
-    if (fetchResult.error.type === "blocked" && fetchResult.error.statusCode === 403) {
+    // Check if this is a blocked error (401, 403, 429, 451) that could be resolved
+    if (fetchResult.error.type === "blocked") {
       // First, try automatic fallback: check if URL is already open in a browser tab
       const browserResult = await tryGetContentFromOpenTab(url);
 
@@ -55,9 +75,9 @@ export async function loadArticleFromUrl(
 
       // If Paywall Hopper is enabled, try bypass methods before showing blocked view
       if (options.enablePaywallHopper) {
-        paywallLog.log("hopper:blocked-page-detected", { url, statusCode: 403 });
+        paywallLog.log("hopper:blocked-page-detected", { url, statusCode: fetchResult.error.statusCode });
 
-        const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
+        const hopperResult = await tryBypassPaywall(url);
 
         if (hopperResult.success && hopperResult.html) {
           paywallLog.log("hopper:bypass-success", {
@@ -191,7 +211,7 @@ export async function loadArticleFromUrl(
       });
 
       // Try to get full content via Paywall Hopper
-      const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
+      const hopperResult = await tryBypassPaywall(url);
 
       if (hopperResult.success && hopperResult.html) {
         // Parse the bypassed content
@@ -275,7 +295,6 @@ export async function loadArticleFromUrl(
     url,
     title: formatted.title,
     markdownLength: formatted.markdown.length,
-    bypassedCheck: options.skipPreCheck,
   });
 
   const article: ArticleState = {
@@ -286,7 +305,6 @@ export async function loadArticleFromUrl(
     url,
     source,
     textContent: parseResult.article.textContent,
-    bypassedReadabilityCheck: options.skipPreCheck,
   };
 
   return { status: "success", article };
@@ -300,12 +318,11 @@ export async function loadArticleViaPaywallHopper(
   url: string,
   options: {
     showArticleImage?: boolean;
-    onStatusUpdate?: ArchiveStatusCallback;
   },
 ): Promise<LoadArticleResult> {
   paywallLog.log("hopper:direct-attempt", { url });
 
-  const hopperResult = await tryBypassPaywall(url, options.onStatusUpdate);
+  const hopperResult = await tryBypassPaywall(url);
 
   if (!hopperResult.success || !hopperResult.html) {
     paywallLog.log("hopper:direct-failed", { url, error: hopperResult.error });

@@ -9,56 +9,84 @@ interface ArticleDetailViewProps {
   summaryStyle: SummaryStyle | null;
   currentSummary: string | null;
   isSummarizing: boolean;
-  shouldShowSummary: boolean;
   canAccessAI: boolean;
   onSummarize: (style: SummaryStyle) => void;
+  onStopSummarizing?: () => void;
   onReimportFromBrowser?: () => void;
 }
 
-function buildMarkdown(
-  article: ArticleState,
-  summaryStyle: SummaryStyle | null,
-  currentSummary: string | null,
-  isSummarizing: boolean,
-  shouldShowSummary: boolean,
-): string {
+/**
+ * Builds the article header (title + metadata) as Markdown.
+ * Reusable for both display and export.
+ */
+export function buildArticleHeader(article: ArticleState): string {
   const parts: string[] = [];
 
   // 1. Title
   parts.push(`# ${article.title}`);
 
-  // 2. Metadata (byline • siteName)
+  // 2. Metadata (byline • siteName • archive source)
   const metaParts: string[] = [];
   if (article.byline) metaParts.push(article.byline);
   if (article.siteName) metaParts.push(article.siteName);
+  if (article.archiveSource) {
+    const sourceLabels: Record<string, string> = {
+      googlebot: "Googlebot",
+      bingbot: "Bingbot",
+      "social-referrer": "Social Referrer",
+      wallhopper: "WallHopper",
+      "archive.is": "Archive.is",
+      wayback: "Wayback Machine",
+      browser: "Browser",
+    };
+    const label = sourceLabels[article.archiveSource.service] || article.archiveSource.service;
+    // Link to archive URL if available (Archive.is, Wayback Machine)
+    if (article.archiveSource.url) {
+      metaParts.push(`Retrieved via [${label}](${article.archiveSource.url})`);
+    } else {
+      metaParts.push(`Retrieved via ${label}`);
+    }
+  }
   if (metaParts.length > 0) {
     parts.push("", `*${metaParts.join(" • ")}*`);
   }
 
-  // 3. Summary section (if applicable)
-  if (shouldShowSummary && summaryStyle) {
-    parts.push("", "---");
+  return parts.join("\n");
+}
 
+/**
+ * Builds article-only Markdown (header + body, no summary).
+ * Used for "Copy/Save Article" actions.
+ */
+export function buildArticleMarkdown(article: ArticleState): string {
+  const header = buildArticleHeader(article);
+  return [header, "", "---", "", article.bodyMarkdown].join("\n");
+}
+
+/**
+ * Builds the full display Markdown (header + optional summary + body).
+ */
+function buildMarkdown(
+  article: ArticleState,
+  summaryStyle: SummaryStyle | null,
+  currentSummary: string | null,
+  isSummarizing: boolean,
+): string {
+  const header = buildArticleHeader(article);
+  const parts: string[] = [header, "", "---"];
+
+  if (summaryStyle) {
     if (isSummarizing && currentSummary) {
-      // Streaming in progress - show partial summary
       parts.push("", formatSummaryBlock(currentSummary, summaryStyle), "", "*Generating summary...*");
     } else if (isSummarizing) {
-      // Just started, no data yet
       parts.push("", "> Generating summary...");
     } else if (currentSummary) {
-      // Complete summary
       parts.push("", formatSummaryBlock(currentSummary, summaryStyle));
     }
-
-    parts.push("", "---");
-  } else {
-    // No summary - just add separator before body
     parts.push("", "---");
   }
 
-  // 4. Body content
   parts.push("", article.bodyMarkdown);
-
   return parts.join("\n");
 }
 
@@ -67,25 +95,27 @@ export function ArticleDetailView({
   summaryStyle,
   currentSummary,
   isSummarizing,
-  shouldShowSummary,
   canAccessAI,
   onSummarize,
+  onStopSummarizing,
   onReimportFromBrowser,
 }: ArticleDetailViewProps) {
-  const markdown = buildMarkdown(article, summaryStyle, currentSummary, isSummarizing, shouldShowSummary);
+  const markdown = buildMarkdown(article, summaryStyle, currentSummary, isSummarizing);
 
   return (
     <Detail
       markdown={markdown}
-      navigationTitle={article.title}
       isLoading={isSummarizing}
       actions={
         <ArticleActions
           articleUrl={article.url}
+          articleTitle={article.title}
           markdown={markdown}
           currentSummary={currentSummary}
           canAccessAI={canAccessAI}
+          isSummarizing={isSummarizing}
           onSummarize={onSummarize}
+          onStopSummarizing={onStopSummarizing}
           onReimportFromBrowser={onReimportFromBrowser}
           archiveSource={article.archiveSource}
         />

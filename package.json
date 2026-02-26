@@ -5,6 +5,9 @@
   "description": "Read the web distraction-free in Raycast.",
   "icon": "reader-icon.png",
   "author": "chrismessina",
+  "contributors": [
+    "heytommy"
+  ],
   "platforms": [
     "macOS",
     "Windows"
@@ -31,63 +34,173 @@
           "required": false
         }
       ]
+    },
+    {
+      "name": "open-clipboard",
+      "title": "Open Clipboard in Reader Mode",
+      "subtitle": "Reader Mode",
+      "description": "Open URL from clipboard in reader mode",
+      "mode": "view",
+      "disabledByDefault": true
+    },
+    {
+      "name": "open-current-tab",
+      "title": "Open Current Tab in Reader Mode",
+      "subtitle": "Reader Mode",
+      "description": "Open current browser tab in reader mode",
+      "mode": "view",
+      "disabledByDefault": true
     }
   ],
   "preferences": [
+    {
+      "name": "rewriteArticleTitles",
+      "title": "Rewrite Article Titles",
+      "description": "Generate concise, easy-to-read titles (requires Raycast AI).",
+      "type": "checkbox",
+      "label": "Enable",
+      "default": false,
+      "required": false
+    },
     {
       "name": "enableAISummary",
       "title": "Automatically Generate Summaries",
       "description": "Automatically summarize articles (requires Raycast AI).",
       "type": "checkbox",
       "label": "Enable",
-      "default": true,
+      "default": false,
       "required": false
     },
     {
       "name": "defaultSummaryStyle",
-      "title": "Summary Style",
+      "title": "Default Summary Style",
       "description": "Default style for summaries.",
       "type": "dropdown",
       "default": "overview",
       "required": false,
       "data": [
-        { "title": "Overview", "value": "overview" },
-        { "title": "Arc-style Summary", "value": "arc-style" },
-        { "title": "Opposing Sides", "value": "opposite-sides" },
-        { "title": "The 5 Ws", "value": "five-ws" },
-        { "title": "Explain Like I'm 5", "value": "eli5" },
-        { "title": "Translated Overview", "value": "translated" },
-        { "title": "People, Places & Things", "value": "entities" }
+        {
+          "title": "Overview",
+          "value": "overview"
+        },
+        {
+          "title": "At a Glance",
+          "value": "at-a-glance"
+        },
+        {
+          "title": "Comprehensive",
+          "value": "comprehensive"
+        },
+        {
+          "title": "Opposing Sides",
+          "value": "opposite-sides"
+        },
+        {
+          "title": "The 5 Ws",
+          "value": "five-ws"
+        },
+        {
+          "title": "Explain Like I'm 5",
+          "value": "eli5"
+        },
+        {
+          "title": "People, Places & Things",
+          "value": "entities"
+        }
       ]
     },
     {
-      "name": "translationLanguage",
-      "title": "Translated Overview Language",
-      "description": "Default language for translated summaries.",
+      "name": "summaryOutputLanguage",
+      "title": "Summary Output Language",
+      "description": "Language for AI-generated summaries.",
       "type": "dropdown",
-      "default": "es-ES",
+      "default": "en-US",
       "required": false,
       "data": [
-        { "title": "🇪🇸 Spanish", "value": "es-ES" },
-        { "title": "🇫🇷 French", "value": "fr-FR" },
-        { "title": "🇩🇪 German", "value": "de-DE" },
-        { "title": "🇮🇹 Italian", "value": "it-IT" },
-        { "title": "🇧🇷 Portuguese", "value": "pt-BR" },
-        { "title": "🇯🇵 Japanese", "value": "ja-JP" },
-        { "title": "🇨🇳 Chinese (Simplified)", "value": "zh-Hans" },
-        { "title": "🇹🇼 Chinese (Traditional)", "value": "zh-Hant" },
-        { "title": "🇰🇷 Korean", "value": "ko-KR" },
-        { "title": "🇷🇺 Russian", "value": "ru-RU" },
-        { "title": "🇸🇦 Arabic", "value": "ar-SA" },
-        { "title": "🇮🇳 Hindi", "value": "hi-IN" },
-        { "title": "🇳🇱 Dutch", "value": "nl-NL" },
-        { "title": "🇵🇱 Polish", "value": "pl-PL" },
-        { "title": "🇸🇪 Swedish", "value": "sv-SE" },
-        { "title": "🇹🇷 Turkish", "value": "tr-TR" },
-        { "title": "🇻🇳 Vietnamese", "value": "vi-VN" },
-        { "title": "🇹🇭 Thai", "value": "th-TH" },
-        { "title": "🇬🇷 Greek", "value": "el-GR" },
-        { "title": "🇮🇱 Hebrew", "value": "he-IL" }
+        {
+          "title": "🇺🇸 English",
+          "value": "en-US"
+        },
+        {
+          "title": "🇪🇸 Spanish",
+          "value": "es-ES"
+        },
+        {
+          "title": "🇫🇷 French",
+          "value": "fr-FR"
+        },
+        {
+          "title": "🇩🇪 German",
+          "value": "de-DE"
+        },
+        {
+          "title": "🇮🇹 Italian",
+          "value": "it-IT"
+        },
+        {
+          "title": "🇧🇷 Portuguese",
+          "value": "pt-BR"
+        },
+        {
+          "title": "🇯🇵 Japanese",
+          "value": "ja-JP"
+        },
+        {
+          "title": "🇨🇳 Chinese (Simplified)",
+          "value": "zh-Hans"
+        },
+        {
+          "title": "🇹🇼 Chinese (Traditional)",
+          "value": "zh-Hant"
+        },
+        {
+          "title": "🇰🇷 Korean",
+          "value": "ko-KR"
+        },
+        {
+          "title": "🇷🇺 Russian",
+          "value": "ru-RU"
+        },
+        {
+          "title": "🇸🇦 Arabic",
+          "value": "ar-SA"
+        },
+        {
+          "title": "🇮🇳 Hindi",
+          "value": "hi-IN"
+        },
+        {
+          "title": "🇳🇱 Dutch",
+          "value": "nl-NL"
+        },
+        {
+          "title": "🇵🇱 Polish",
+          "value": "pl-PL"
+        },
+        {
+          "title": "🇸🇪 Swedish",
+          "value": "sv-SE"
+        },
+        {
+          "title": "🇹🇷 Turkish",
+          "value": "tr-TR"
+        },
+        {
+          "title": "🇻🇳 Vietnamese",
+          "value": "vi-VN"
+        },
+        {
+          "title": "🇹🇭 Thai",
+          "value": "th-TH"
+        },
+        {
+          "title": "🇬🇷 Greek",
+          "value": "el-GR"
+        },
+        {
+          "title": "🇮🇱 Hebrew",
+          "value": "he-IL"
+        }
       ]
     },
     {
@@ -97,6 +210,13 @@
       "type": "checkbox",
       "label": "Show",
       "default": true,
+      "required": false
+    },
+    {
+      "name": "downloadPath",
+      "title": "Download Path",
+      "description": "Path to save downloaded files. If not set, defaults to Downloads folder.",
+      "type": "directory",
       "required": false
     },
     {
@@ -128,11 +248,12 @@
     }
   ],
   "dependencies": {
-    "@chrismessina/raycast-logger": "^1.2.1",
+    "@chrismessina/raycast-logger": "^1.2.2",
     "@mozilla/readability": "^0.6.0",
     "@raycast/api": "^1.104.1",
     "@raycast/utils": "^2.2.2",
     "linkedom": "^0.18.12",
+    "marked": "^17.0.1",
     "turndown": "^7.2.2",
     "turndown-plugin-gfm": "^1.0.2"
   },

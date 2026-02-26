@@ -12,56 +12,131 @@
   </a>
 </div>
 
-_Read the web distraction-free in Raycast._
-
-Read web articles distraction-free with AI summaries. Extracts clean content, removes ads and clutter, offers 7 summary styles (Overview, ELI5, Translated, etc.), bypasses paywalls via archives, and handles blocked pages with browser extension fallback.
-
-## Quick Start
-
-**Usage:**
-
-1. Once installed, open Raycast and type `reader` (or use your chosen alias)
-2. Paste a URL, or let Reader Mode detect URLs from:
-   - Your clipboard
-   - Selected text
-   - The active browser tab (if you have the [Raycast browser extension](https://www.raycast.com/browser-extension) installed)
-3. Reader Mode extracts and displays the article with an optional AI summary
-
-**Keyboard shortcuts:**
-
-- `⌘ + C` — Copy article as Markdown
-- `⌘ + ⇧ + C` — Copy summary
-- `⌘ + O` — Open original URL in browser
-- `⌘ + ⇧ + R` — Import from browser tab (for paywalled content)
+Read the web distraction-free in Raycast.
 
 ## Features
 
-- **Clean Reading Experience** — Extracts article content and removes distractions
-- **AI Summaries** — Multiple summary styles powered by Raycast AI
-- **Article Images** — Optionally display featured image (toggle in preferences)
-- **Browser Extension Fallback** — Access blocked pages and re-import member-only content via the [Raycast browser extension](https://www.raycast.com/browser-extension)
-- **Smart URL Detection** — Automatically detects URLs from arguments, clipboard, selection, or active browser tab
-- **Paywall Bypass** — Attempts to retrieve paywalled content via archive services
+- **Clean Reading Experience** - Extracts article content and removes distractions
+- **AI Summaries** - Multiple summary styles powered by Raycast AI
+- **Browser Extension Fallback** - Access blocked pages and re-import member-only content via the Raycast browser extension
+- **Smart URL Detection** - Automatically detects URLs from arguments, clipboard, selection, or active browser tab
 
-## Summary Styles
+## Commands
 
-Reader Mode offers seven AI-powered summary styles accessible via the action panel:
+| Command                             | Description                                  | Default  |
+| ----------------------------------- | -------------------------------------------- | -------- |
+| **Open in Reader Mode**             | Main command - opens a URL in reader mode    | Enabled  |
+| **Open Clipboard in Reader Mode**   | Opens URL from clipboard directly            | Disabled |
+| **Open Current Tab in Reader Mode** | Opens the current browser tab in reader mode | Disabled |
 
-| Style | Description | Best For |
-| ------- | ------------- | ---------- |
-| **Overview** | One-liner + 3 key bullet points | Quick scanning of news and articles |
-| **Arc-style Summary** | Detailed, fact-specific summary (4-7 points) | Long articles needing comprehensive summaries |
-| **Opposing Sides** | Two contrasting perspectives | Opinion pieces and debates |
-| **The 5 Ws** | Who, What, Where, When, Why breakdown | News stories and event coverage |
-| **Explain Like I'm 5** | Simplified, friendly explanation | Complex or technical content |
-| **Translated Overview** | Overview in 20+ languages | Language learning and international readers |
-| **People, Places & Things** | Key entities with context | Articles with many named entities |
+The clipboard and current tab commands are disabled by default to reduce command clutter. Enable them in Raycast Settings → Extensions → Reader Mode if you prefer dedicated commands over the main command's auto-detection.
 
-Change summary styles via the action panel (`⌘ + K`) or set a default in preferences.
+## Architecture
 
-## For Contributors
+### Content Extraction
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for architecture details, development setup, and contribution guidelines.
+Reader Mode uses a multi-layered approach to extract clean article content:
+
+1. **Site-Specific Extractors** (`src/extractors/`) - Custom extraction logic for complex sites
+2. **Site Configuration** (`src/utils/site-config.ts`) - Selector-based configuration for simpler sites
+3. **Mozilla Readability** - Fallback for all other sites
+
+#### Extractors vs Site Config
+
+| Approach        | Use Case                                                      | Examples                     |
+| --------------- | ------------------------------------------------------------- | ---------------------------- |
+| **Extractors**  | Sites needing custom DOM traversal and content transformation | Hacker News, GitHub, Reddit  |
+| **Site Config** | Sites needing only CSS selector adjustments                   | Medium, Substack, news sites |
+| **Readability** | Standard article pages                                        | Most blogs and news articles |
+
+### Adding Support for New Sites
+
+**For simple sites** (just need different selectors), add to `src/utils/site-config.ts`:
+
+```typescript
+[
+  /^example\.com$/i,
+  {
+    name: "Example",
+    articleSelector: ".article-body",
+    removeSelectors: [".ads", ".sidebar"],
+  },
+],
+```
+
+**For complex sites** (need custom extraction logic), create a new extractor:
+
+1. Create `src/extractors/mysite.ts` extending `BaseExtractor`
+2. Implement `canExtract()`, `extract()`, and `get siteName()`
+3. Register in `src/extractors/index.ts`
+
+```typescript
+export class MySiteExtractor extends BaseExtractor {
+  get siteName(): string {
+    return "My Site";
+  }
+
+  canExtract(): boolean {
+    return !!this.querySelector(".my-content");
+  }
+
+  extract(): ExtractorResult {
+    // Custom extraction logic
+    return { content, textContent, metadata };
+  }
+}
+```
+
+## Summary Configuration
+
+The extension uses a modular configuration system located in `src/config/`:
+
+### AI Model Configuration (`ai.ts`)
+
+Controls which AI model and creativity level is used for each summary style. This allows fine-tuning performance per summary type.
+
+```typescript
+export const AI_SUMMARY_CONFIG: Record<SummaryStyle, AIStyleConfig> = {
+  overview: { model: AI.Model["OpenAI_GPT-5_nano"], creativity: "low" },
+  "opposite-sides": { model: AI.Model["OpenAI_GPT-5_nano"], creativity: "low" },
+  // ...
+};
+```
+
+### Prompt Templates (`prompts.ts`)
+
+Contains all summary prompt templates in one place for easy comparison and editing.
+
+```typescript
+export const SUMMARY_PROMPTS: Record<SummaryStyle, PromptConfig> = {
+  overview: {
+    label: "Overview",
+    buildPrompt: (context) => `${context}\n\nSummarize this article...`,
+  },
+  // ...
+};
+```
+
+Each prompt config includes:
+
+- **`label`** - Human-readable name shown in the UI
+- **`buildPrompt`** - Function that generates the full prompt from article context
+
+### Summary Styles
+
+| Style                       | Description                                           |
+| --------------------------- | ----------------------------------------------------- |
+| **Overview**                | One-liner summary + 3 key bullet points               |
+| **At a Glance**             | Summary + Key Takeaways in a concise format           |
+| **Comprehensive**           | Fact-filled bullet points from the author's POV       |
+| **Opposing Sides**          | Two contrasting viewpoints from the article           |
+| **The 5 Ws**                | Who, What, Where, When, Why breakdown                 |
+| **Explain Like I'm 5**      | Simplified explanation using simple language          |
+| **People, Places & Things** | Key entities extracted with context                   |
+
+### Summary Output Language
+
+All summary styles can be generated in your preferred language. Set the **Summary Output Language** preference to choose from 21 supported languages including English (default), Spanish, French, German, Japanese, Chinese, and more. When a non-English language is selected, summaries will be generated in that language regardless of the article's original language.
 
 ## Browser Extension Integration
 
@@ -126,6 +201,18 @@ Instead, we adopted Defuddle's excellent patterns:
 
 This hybrid approach gives us the best of both worlds: Defuddle's battle-tested extraction patterns with tight Raycast integration.
 
+## Known Issues
+
+### Bracket Rendering
+
+Square brackets `[text]` that appear in article content (such as editorial insertions in quotes) are automatically converted to parentheses `(text)` to prevent Raycast's markdown renderer from interpreting them as LaTeX math notation. This is a workaround for a rendering limitation and means the displayed text may differ slightly from the original source material.
+
+### Image Rendering
+
+Image alt text and title attributes are automatically stripped to ensure proper rendering in Raycast. Images are displayed as `![](url)` without descriptive text. This prevents rendering issues where long alt text or title attributes (especially those containing quotes) can break the markdown image syntax.
+
+Additionally, relative image URLs (e.g., `/image.jpg`) are automatically converted to absolute URLs using the page's base URL to ensure images load properly.
+
 ## References
 
 - [Mozilla Readability](https://github.com/mozilla/readability) - Core content extraction
@@ -133,27 +220,4 @@ This hybrid approach gives us the best of both worlds: Defuddle's battle-tested 
 - [Turndown](https://github.com/mixmark-io/turndown) - HTML to Markdown conversion
 - [Raycast API Docs](https://developers.raycast.com)
 - [Logger Integration Guide](./docs/logger-integration.md)
-
----
-
-## Credits
-
-Built by [Chris Messina](https://github.com/chrismessina).
-
-Uses:
-
-- [Cheerio](https://cheerio.js.org/) for HTML parsing
-- [Wayback Machine API](https://archive.org/help/wayback_api.php) for archive data
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-  <p>If you find Reader Mode helpful, feel free to buy me a coffee!</p>
-  <a href="https://ko-fi.com/chris">
-    <img src="https://img.shields.io/badge/Ko--fi-Support-ff5f5f?logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
-  </a>
-</div>
+- [Extension Spec](./docs/about.md)

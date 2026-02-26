@@ -9,6 +9,24 @@
  * dedicated extractors in src/extractors/ which provide richer content extraction.
  */
 
+/**
+ * Configuration for formatting image captions.
+ * Used for sites that have separate caption text and credit elements.
+ */
+export interface CaptionConfig {
+  /**
+   * CSS selector for the caption text element.
+   * This text will be wrapped in <em> tags for italic formatting.
+   */
+  textSelector: string;
+
+  /**
+   * CSS selector for the photo credit element.
+   * A space will be prepended to separate it from the caption text.
+   */
+  creditSelector: string;
+}
+
 export interface SiteConfig {
   /** Display name for the site */
   name: string;
@@ -51,6 +69,13 @@ export interface SiteConfig {
    * Useful for sites with rich structured data.
    */
   preferSchemaOrg?: boolean;
+
+  /**
+   * Configuration for formatting image captions.
+   * Wraps caption text in <em> and adds space before credits.
+   * Useful for Condé Nast sites and others with structured captions.
+   */
+  captionConfig?: CaptionConfig;
 }
 
 /**
@@ -212,6 +237,9 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         '[data-component="links-block"]',
         ".ssrcss-1q0x1qg-Promo",
         ".ssrcss-1mrs5ns-PromoLink",
+        '[data-testid="hero-image"]',
+        '[data-component="image-block"]',
+        '[data-component="byline-block"]',
       ],
     },
   ],
@@ -261,7 +289,7 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     /^(.*\.)?reuters\.com$/i,
     {
       name: "Reuters",
-      articleSelector: '[data-testid="Article"], [data-testid="article-body"]',
+      articleSelector: '[data-testid="Article"]',
       removeSelectors: [
         ".ad",
         ".newsletter-subscribe-form",
@@ -273,9 +301,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         '[data-testid="AuthorBio"]',
         '[data-testid="NewTabSymbol"]',
         '[data-testid="Link"] > span[style*="clip"]',
-        '[data-testid="Slideshow"]',
-        ".related-coverage",
-        ".trust-principles",
       ],
     },
   ],
@@ -290,15 +315,9 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         ".embed-tc-newsletter",
         ".related-posts",
         ".ad-unit",
-        ".article__meta",
         ".wp-block-techcrunch-inline-cta",
-        ".wp-block-techcrunch-post-authors-list",
         '[data-ctatext="View Bio"]',
         ".wp-block-image__credits", // Remove "Image Credits:" spans from figcaptions
-        ".wp-block-post-featured-image",
-        "#h-latest-in",
-        ".wp-block-tc23-post-relevant-terms",
-        ".newsletter-signup-compact__description",
       ],
     },
   ],
@@ -326,35 +345,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
-  // Boston Globe
-  [
-    /^(.*\.)?bostonglobe\.com$/i,
-    {
-      name: "Boston Globe",
-      articleSelector: "#article-body",
-      removeSelectors: [".ad", ".newsletter"],
-    },
-  ],
-
-  // Slate
-  [
-    /^(.*\.)?slate\.com$/i,
-    {
-      name: "Slate",
-      articleSelector: ".article__body",
-      removeSelectors: [
-        ".article__top-image",
-        " .article__rubric",
-        ".article__podcast-subscribe",
-        ".recirc-line",
-        ".slate-ad",
-        ".newsletter-signup",
-        ".social-share",
-        ".article__tags",
-      ],
-    },
-  ],
-
   // Engadget
   [
     /^(.*\.)?engadget\.com$/i,
@@ -372,6 +362,23 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       name: "CNET",
       articleSelector: "#rbContent.container",
       removeSelectors: [".ad", ".newsletter-signup"],
+    },
+  ],
+
+  // Le Monde
+  [
+    /^(.*\.)?lemonde\.fr$/i,
+    {
+      name: "Le Monde",
+      articleSelector: ".article__content",
+      removeSelectors: [
+        ".reading-mode-only",
+        ".capping",
+        ".article__header",
+        ".ds-header",
+        ".ds-article-status",
+        ".ds-footer",
+      ],
     },
   ],
 
@@ -425,6 +432,16 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
     },
   ],
 
+  // Reuters
+  [
+    /^(.*\.)?reuters\.com$/i,
+    {
+      name: "Reuters",
+      articleSelector: '[data-testid="article-body"]',
+      removeSelectors: [".ad", '[data-testid="Slideshow"]', ".related-coverage", ".trust-principles"],
+    },
+  ],
+
   // Forbes
   [
     /^(.*\.)?forbes\.com$/i,
@@ -432,6 +449,30 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
       name: "Forbes",
       articleSelector: ".article-body",
       removeSelectors: [".ad", ".forbes-subscribe", ".newsletter-tout", "#taboola-below-article-thumbnails", ".fs-ad"],
+    },
+  ],
+
+  // WSJ
+  [
+    /^(.*\.)?wsj\.com$/i,
+    {
+      name: "WSJ",
+      articleSelector: ".article-container",
+      removeSelectors: [".e1jdulti0"],
+    },
+  ],
+
+  // Vanity Fair (Condé Nast)
+  [
+    /^(.*\.)?vanityfair\.com$/i,
+    {
+      name: "Vanity Fair",
+      articleSelector: "article",
+      removeSelectors: [".e1jdulti0"],
+      captionConfig: {
+        textSelector: ".caption__text, [class*='CaptionText-']",
+        creditSelector: ".caption__credit, [class*='CaptionCredit-']",
+      },
     },
   ],
 
@@ -605,33 +646,6 @@ const SITE_CONFIG_LIST: Array<[RegExp, SiteConfig]> = [
         "nav",
         ".menu-main-menu-container",
         "#menu-main-menu",
-      ],
-    },
-  ],
-
-  // Every.to
-  [
-    /^(.*\.)?every\.to$/i,
-    {
-      name: "Every",
-      articleSelector: '[itemprop="articleBody"]',
-      removeSelectors: ["#comments-box", ".mb-8"],
-    },
-  ],
-
-  // Financial Times
-  [
-    /^(.*\.)?ft\.com$/i,
-    {
-      name: "FinancialTimes",
-      articleSelector: "article",
-      removeSelectors: [
-        ".o-topper__visual",
-        ".article-image__placeholder",
-        '[data-trackable="share-nav"]',
-        ".o-ads",
-        ".n-content-recommended",
-        ".o-teaser-collection",
       ],
     },
   ],
