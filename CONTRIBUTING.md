@@ -25,26 +25,29 @@ Thank you for your interest in contributing to Reader! This guide will help you 
 ### Setup
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/chrismessina/raycast-reader.git
 cd raycast-reader
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 npm install
 ```
 
-3. Start development mode:
+1. Start development mode:
+
 ```bash
 npm run dev
 ```
 
-4. The extension will automatically reload in Raycast when you make changes.
+1. The extension will automatically reload in Raycast when you make changes.
 
 ### Project Structure
 
-```
+```text
 raycast-reader/
 ├── src/
 │   ├── actions/          # Action panel components
@@ -66,7 +69,7 @@ raycast-reader/
 
 Reader follows a pipeline architecture:
 
-```
+```text
 URL Input → Fetch → Extract → Convert → Summarize → Display
 ```
 
@@ -92,6 +95,7 @@ Reader uses a **three-tier extraction system** that handles different site compl
 Extractors are for sites with non-standard structures that need custom DOM traversal and content transformation.
 
 **Current extractors:**
+
 - `hackernews.ts` — Transforms comment threads
 - `github.ts` — Extracts README content
 - `reddit.ts` — Converts posts and comments
@@ -174,6 +178,7 @@ export const SITE_CONFIGS: [RegExp, SiteConfig][] = [
 ```
 
 **Available options:**
+
 - `name` — Human-readable site name
 - `articleSelector` — Override content container selector
 - `removeSelectors` — Array of selectors to remove before extraction
@@ -185,7 +190,7 @@ Automatically handles standard article pages without any configuration.
 
 ### Decision Tree: Extractor vs Site Config
 
-```
+```text
 Does the site need custom DOM traversal or content restructuring?
 ├─ YES → Create an extractor
 └─ NO → Use site config
@@ -260,7 +265,7 @@ export type SummaryStyle =
   | ...;
 ```
 
-2. **Configure AI settings** in `src/config/ai.ts`:
+1. **Configure AI settings** in `src/config/ai.ts`:
 
 ```typescript
 export const AI_SUMMARY_CONFIG: Record<SummaryStyle, AIStyleConfig> = {
@@ -272,7 +277,7 @@ export const AI_SUMMARY_CONFIG: Record<SummaryStyle, AIStyleConfig> = {
 };
 ```
 
-3. **Add prompt template** in `src/config/prompts.ts`:
+1. **Add prompt template** in `src/config/prompts.ts`:
 
 ```typescript
 export const SUMMARY_PROMPTS: Record<SummaryStyle, PromptConfig> = {
@@ -289,7 +294,7 @@ Format your response EXACTLY like this:
 };
 ```
 
-4. **Add preference option** in `package.json`:
+1. **Add preference option** in `package.json`:
 
 ```json
 {
@@ -301,7 +306,7 @@ Format your response EXACTLY like this:
 }
 ```
 
-5. **Add action** in `src/actions/ArticleActions.tsx`:
+1. **Add action** in `src/actions/ArticleActions.tsx`:
 
 ```typescript
 <Action
@@ -365,7 +370,7 @@ log stream --predicate 'subsystem == "com.raycast.macos"' --level debug
 # Or use Console.app and filter for "Reader"
 ```
 
-3. **Common log events:**
+1. **Common log events:**
 
    - `url:resolve:*` — URL resolution
    - `fetch:*` — HTTP requests
