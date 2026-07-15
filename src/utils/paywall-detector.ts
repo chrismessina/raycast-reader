@@ -292,11 +292,14 @@ function matchesHidingRule(element: MinimalElement, rules: HidingRules): boolean
  * page and reveal it via JS only when a meter trips. Visibility depends on the element AND its
  * ancestors, which is why this walks up the tree rather than checking one tag.
  *
- * Covers the ways static HTML expresses "not shown": the `hidden` / `aria-hidden` attributes,
- * inline `display:none` / `visibility:hidden`, inert containers (`<template>` et al.), and — via
+ * Covers the ways static HTML expresses "not shown": the `hidden` attribute, inline
+ * `display:none` / `visibility:hidden`, inert containers (`<template>` et al.), and — via
  * `rules` — classes/ids the page's own `<style>` blocks hide. It cannot evaluate visibility from
  * an *external* stylesheet, but a real barrier is shown, so that residual is a rare missed
  * positive, never a false one — the safe direction to err.
+ *
+ * `aria-hidden` is deliberately NOT treated as hidden: it removes an element from the
+ * accessibility tree, not from the page, so a paywall a sighted reader sees can carry it.
  */
 function isElementHidden(element: MinimalElement, rules: HidingRules): boolean {
   let current: MinimalElement | null = element;
@@ -304,7 +307,6 @@ function isElementHidden(element: MinimalElement, rules: HidingRules): boolean {
   while (current) {
     if (current.tagName && INERT_TAGS.has(current.tagName.toUpperCase())) return true;
     if (current.getAttribute("hidden") !== null) return true;
-    if (current.getAttribute("aria-hidden") === "true") return true;
 
     const style = (current.getAttribute("style") ?? "").replace(/\s+/g, "").toLowerCase();
     if (style.includes("display:none") || style.includes("visibility:hidden")) return true;
@@ -325,6 +327,16 @@ function isElementHidden(element: MinimalElement, rules: HidingRules): boolean {
  * parsing fix freed up (a few MB, tens of ms), and it is the only way to answer "is this
  * barrier actually shown?" reliably; a regex over the HTML string cannot.
  */
+/**
+ * Adds the CSS case-insensitive flag to each attribute clause of a selector, so
+ * `[class*="paywall"]` also matches `class="Paywall"`. Real sites capitalize these class names,
+ * and the previous regex matcher was case-insensitive — without this, moving to the DOM would
+ * silently start missing them.
+ */
+function caseInsensitive(selector: string): string {
+  return selector.replace(/(=["'][^"']*["'])\]/g, "$1 i]");
+}
+
 function findVisibleBarrier(html: string): string | null {
   let document: ReturnType<typeof parseHTML>["document"];
   try {
@@ -338,7 +350,7 @@ function findVisibleBarrier(html: string): string | null {
   for (const selector of BARRIER_SELECTORS) {
     let elements: ArrayLike<MinimalElement>;
     try {
-      elements = document.querySelectorAll(selector) as unknown as ArrayLike<MinimalElement>;
+      elements = document.querySelectorAll(caseInsensitive(selector)) as unknown as ArrayLike<MinimalElement>;
     } catch {
       continue; // linkedom rejects some selectors; skip them
     }
