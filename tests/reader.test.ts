@@ -124,10 +124,38 @@ describe("paywall detection", () => {
     });
   }
 
+  // Regression: an inline `<style>` block can hide a barrier by class or id, so barrier markup
+  // controlled by a same-page stylesheet must not count as visible either.
+  const STYLESHEET_HIDDEN: Array<[string, string, string]> = [
+    ["a class rule", `<style>.article-gate{display:none}</style>`, `<div class="article-gate">Subscribe</div>`],
+    ["an id rule", `<style>#paywall{visibility:hidden}</style>`, `<div id="paywall" class="x">Subscribe</div>`],
+    ["a hidden ancestor rule", `<style>.wrap{display:none}</style>`, `<div class="wrap"><div class="paywall">Subscribe</div></div>`],
+  ];
+
+  for (const [how, style, barrier] of STYLESHEET_HIDDEN) {
+    it(`does not convict on a barrier hidden by ${how}`, () => {
+      const html =
+        `<!doctype html><html><head><title>Free Article</title>${style}</head>` +
+        `<body>${READABLE_BODY}${barrier}</body></html>`;
+
+      const parsed = parseArticle(html, "https://example.com/free", { skipPreCheck: true, forceParse: true });
+      const textContent = parsed.success ? parsed.article.textContent : "";
+      const result = detectPaywall({ textContent, html }, "https://example.com/free");
+
+      assert.equal(
+        result.isPaywalled,
+        false,
+        `a stylesheet-hidden barrier (${how}) convicted a readable article (score ${result.score})`,
+      );
+    });
+  }
+
   it("still detects a barrier that is actually visible", () => {
-    // The other side of the invariant: a real, shown inline barrier must be caught.
+    // The other side of the invariant: a real, shown barrier must be caught — even when the page
+    // also carries an *unrelated* hide rule (so the fix matches rules to elements, not blanket).
     const html =
-      `<!doctype html><html><head><title>Story</title></head><body><main><article>` +
+      `<!doctype html><html><head><title>Story</title><style>.promo{display:none}</style></head>` +
+      `<body><main><article>` +
       `<p>A short free preview of the story.</p>` +
       `<div class="article__wrapper--premium">For subscribers only</div>` +
       `</article></main></body></html>`;
