@@ -9,6 +9,8 @@
 - `docs/content-extraction.md` — Explains the extraction pipeline architecture
 - `docs/paywall-hopper.md` — The paywall bypass flow (detection is now evidence-based; see `src/utils/paywall-detector.ts`)
 - The `### Logging` section in `CONTRIBUTING.md` — Logging conventions
+- `docs/solutions/` — Documented solutions to past problems (bugs, techniques, patterns), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing or debugging in a documented area
+- `CONCEPTS.md` — Shared domain vocabulary (entities, named processes, status concepts); relevant when orienting to the codebase or discussing domain concepts
 - Existing code in the area you're modifying
 
 ## Content Extraction: Site Config vs Extractors
