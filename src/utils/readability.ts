@@ -1,10 +1,10 @@
-import { Readability, isProbablyReaderable } from "@mozilla/readability";
+import { isProbablyReaderable, Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
-import { parseLog } from "./logger";
-import { preCleanHtml } from "./html-cleaner";
-import { MetadataExtractor } from "./metadata-extractor";
-import { getExtractor } from "../extractors";
 import { getSiteConfig } from "../config/site-config";
+import { getExtractor } from "../extractors";
+import { preCleanHtml } from "./html-cleaner";
+import { parseLog } from "./logger";
+import { MetadataExtractor } from "./metadata-extractor";
 
 type LinkedomDocument = ReturnType<typeof parseHTML>["document"];
 

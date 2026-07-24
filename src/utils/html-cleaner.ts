@@ -1,6 +1,6 @@
 import { parseHTML } from "linkedom";
-import { parseLog } from "./logger";
 import { getSiteConfig } from "../config/site-config";
+import { parseLog } from "./logger";
 
 type LinkedomDocument = ReturnType<typeof parseHTML>["document"];
 

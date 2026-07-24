@@ -1,11 +1,11 @@
 import { Detail } from "@raycast/api";
-import { ArticleReaderState, ArticleReaderActions } from "../hooks/useArticleReader";
-import { UrlInputForm } from "./UrlInputForm";
-import { BlockedPageView } from "./BlockedPageView";
-import { NotReadableView } from "./NotReadableView";
-import { EmptyContentView } from "./EmptyContentView";
-import { ArticleDetailView } from "./ArticleDetailView";
 import { InactiveTabActions } from "../actions/InactiveTabActions";
+import { ArticleReaderActions, ArticleReaderState } from "../hooks/useArticleReader";
+import { ArticleDetailView } from "./ArticleDetailView";
+import { BlockedPageView } from "./BlockedPageView";
+import { EmptyContentView } from "./EmptyContentView";
+import { NotReadableView } from "./NotReadableView";
+import { UrlInputForm } from "./UrlInputForm";
 
 export interface ArticleReaderViewProps extends ArticleReaderState, ArticleReaderActions {
   showUrlForm?: boolean;
