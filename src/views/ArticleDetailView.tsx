@@ -1,8 +1,8 @@
 import { Detail } from "@raycast/api";
-import { ArticleActions } from "../actions/ArticleActions";
 import { ArticleState } from "../types/article";
 import { SummaryStyle } from "../types/summary";
 import { formatSummaryBlock } from "../utils/summarizer";
+import { ArticleActions } from "../actions/ArticleActions";
 
 interface ArticleDetailViewProps {
   article: ArticleState;

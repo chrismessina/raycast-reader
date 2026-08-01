@@ -12,9 +12,9 @@
  * Returns the first successful result or failure if all methods fail.
  */
 
-import { fetchFromArchiveIs, fetchFromWayback } from "./archive-fetcher";
-import { fetchHtmlAsBingbot, fetchHtmlAsGooglebot, fetchHtmlWallHopper, fetchHtmlWithSocialReferrer } from "./fetcher";
 import { paywallLog } from "./logger";
+import { fetchHtmlAsGooglebot, fetchHtmlAsBingbot, fetchHtmlWithSocialReferrer, fetchHtmlWallHopper } from "./fetcher";
+import { fetchFromArchiveIs, fetchFromWayback } from "./archive-fetcher";
 
 /**
  * Source of successfully retrieved content

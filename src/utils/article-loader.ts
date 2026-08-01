@@ -21,15 +21,15 @@
  * @see src/hooks/useArticleReader.ts for the React state management layer
  */
 
-import { ArticleState } from "../types/article";
-import { BrowserTab } from "../types/browser";
-import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
+import { urlLog, paywallLog } from "./logger";
 import { fetchHtml } from "./fetcher";
-import { paywallLog, urlLog } from "./logger";
-import { formatArticle } from "./markdown";
-import { detectPaywall } from "./paywall-detector";
-import { ArchiveSource, createArchiveSource, tryBypassPaywall } from "./paywall-hopper";
 import { parseArticle } from "./readability";
+import { formatArticle } from "./markdown";
+import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
+import { tryBypassPaywall, createArchiveSource, ArchiveSource } from "./paywall-hopper";
+import { detectPaywall } from "./paywall-detector";
+import { BrowserTab } from "../types/browser";
+import { ArticleState } from "../types/article";
 
 export type LoadArticleResult =
   | { status: "success"; article: ArticleState }

@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Icon, Keyboard } from "@raycast/api";
+import { ActionPanel, Action, Icon, Keyboard } from "@raycast/api";
 import { BrowserTab } from "../types/browser";
 import { isWindows } from "../utils/host-api";
 

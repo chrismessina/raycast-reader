@@ -1,6 +1,6 @@
 import { Detail } from "@raycast/api";
-import { BlockedPageActions } from "../actions/BlockedPageActions";
 import { BrowserTab } from "../types/browser";
+import { BlockedPageActions } from "../actions/BlockedPageActions";
 import { isWindows } from "../utils/host-api";
 
 interface BlockedPageViewProps {

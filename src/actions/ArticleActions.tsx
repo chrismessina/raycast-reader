@@ -1,25 +1,25 @@
-import { mkdir, writeFile } from "fs/promises";
-import { homedir } from "os";
-import { join } from "path";
 import {
-  Action,
   ActionPanel,
-  Clipboard,
-  closeMainWindow,
-  getPreferenceValues,
+  Action,
   Icon,
   Keyboard,
-  open,
-  showHUD,
-  showInFinder,
   showToast,
   Toast,
+  getPreferenceValues,
+  showInFinder,
+  open,
+  Clipboard,
+  closeMainWindow,
+  showHUD,
 } from "@raycast/api";
+import { homedir } from "os";
+import { join } from "path";
+import { writeFile, mkdir } from "fs/promises";
 import { SummaryStyle } from "../types/summary";
-import { isMacOS } from "../utils/host-api";
-import { markdownToHtml } from "../utils/html-export";
 import { ArchiveSource } from "../utils/paywall-hopper";
 import { getStyleLabel } from "../utils/summarizer";
+import { markdownToHtml } from "../utils/html-export";
+import { isMacOS } from "../utils/host-api";
 
 export const SUMMARY_STYLES: { style: SummaryStyle; icon: Icon }[] = [
   { style: "overview", icon: Icon.List },

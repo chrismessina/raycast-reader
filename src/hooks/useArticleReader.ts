@@ -17,25 +17,25 @@
  *
  * @see src/utils/article-loader.ts for the fetch/parse/paywall logic
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AI, Clipboard, environment, getPreferenceValues, Keyboard, showToast, Toast } from "@raycast/api";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { environment, AI, Clipboard, Keyboard, getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { useAI } from "@raycast/utils";
-import { getAIConfigForStyle } from "../config/ai";
-import { getArchiveSourceLabel } from "../config/labels";
-import { rewriteArticleTitle } from "../config/prompts";
 import { ArticleState } from "../types/article";
 import { BrowserTab } from "../types/browser";
 import { SummaryStyle } from "../types/summary";
-import { loadArticleFromUrl, LoadArticleResult, loadArticleViaPaywallHopper } from "../utils/article-loader";
+import { getAIConfigForStyle } from "../config/ai";
+import { rewriteArticleTitle } from "../config/prompts";
+import { getArchiveSourceLabel } from "../config/labels";
+import { getCachedSummary, setCachedSummary, getLastSummaryStyle } from "../utils/summaryCache";
 import {
-  getContentFromActiveTab,
   isBrowserExtensionAvailable,
   reimportFromBrowserTab,
+  getContentFromActiveTab,
 } from "../utils/browser-extension";
 import { urlLog } from "../utils/logger";
-import { buildSummaryPrompt, getStyleLabel, logSummaryError, logSummarySuccess } from "../utils/summarizer";
-import { getCachedSummary, getLastSummaryStyle, setCachedSummary } from "../utils/summaryCache";
 import { isValidUrl } from "../utils/url-resolver";
+import { getStyleLabel, buildSummaryPrompt, logSummarySuccess, logSummaryError } from "../utils/summarizer";
+import { loadArticleFromUrl, loadArticleViaPaywallHopper, LoadArticleResult } from "../utils/article-loader";
 
 const MINIMUM_ARTICLE_LENGTH = 100;
 

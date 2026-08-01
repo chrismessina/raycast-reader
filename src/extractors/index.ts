@@ -1,9 +1,8 @@
-import { BaseExtractor, ExtractorDocument, ExtractorResult } from "./_base";
-import { GitHubExtractor } from "./github";
+import { BaseExtractor, ExtractorResult, ExtractorDocument } from "./_base";
 import { HackerNewsExtractor } from "./hackernews";
-import { MediumExtractor } from "./medium";
+import { GitHubExtractor } from "./github";
 import { RedditExtractor } from "./reddit";
-
+import { MediumExtractor } from "./medium";
 export { BaseExtractor };
 export type { ExtractorResult };
 

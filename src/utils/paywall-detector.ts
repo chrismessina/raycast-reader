@@ -17,8 +17,8 @@
  */
 
 import { parseHTML } from "linkedom";
-import { PAYWALL_KEYWORDS, PAYWALL_SELECTORS, TRUNCATION_PATTERNS } from "../extractors/_paywall";
 import { paywallLog } from "./logger";
+import { PAYWALL_KEYWORDS, PAYWALL_SELECTORS, TRUNCATION_PATTERNS } from "../extractors/_paywall";
 
 /** A single piece of evidence that a page is paywalled. */
 export interface PaywallSignal {

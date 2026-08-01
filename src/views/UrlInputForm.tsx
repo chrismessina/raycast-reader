@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Form, Icon } from "@raycast/api";
+import { Form, ActionPanel, Action, Icon } from "@raycast/api";
 import { useForm } from "@raycast/utils";
 
 interface UrlFormValues {

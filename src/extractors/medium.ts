@@ -1,4 +1,4 @@
-import { BaseExtractor, ExtractorElement, ExtractorResult } from "./_base";
+import { BaseExtractor, ExtractorResult, ExtractorElement } from "./_base";
 
 /**
  * Extractor for Medium (medium.com)
