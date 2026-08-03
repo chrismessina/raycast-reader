@@ -144,8 +144,27 @@ jobs:
           : > "$RUNNER_TEMP/to-update.txt"
           : > "$RUNNER_TEMP/kept-local.txt"
           : > "$RUNNER_TEMP/conflicts.txt"
+          : > "$RUNNER_TEMP/ignored.txt"
 
           while IFS=$'\t' read -r path up_sha; do
+            # SKIP paths this mirror deliberately gitignores.
+            #
+            # Upstream can serve files the mirror excludes on purpose — the
+            # digger extension publishes a `.private/` directory that its mirror
+            # ignores. Downloading one is harmless; STAGING it is not: `git add`
+            # refuses an ignored path and exits non-zero, which `xargs` reports
+            # as 123 and the whole run fails. Verified on raycast-digger run
+            # 30744504919 (2026-08-02) — and every scheduled run before it, which
+            # is why the failure mails arrived daily.
+            #
+            # Skipping is the correct resolution, not `git add -f`: the mirror's
+            # .gitignore is a deliberate statement that this path does not belong
+            # in this repo, and forcing it would commit exactly what was excluded.
+            if git check-ignore -q -- "$path" 2>/dev/null; then
+              printf '%s\n' "$path" >> "$RUNNER_TEMP/ignored.txt"
+              continue
+            fi
+
             base_sha=$(awk -F'\t' -v p="$path" '$1==p{print $2}' "$RUNNER_TEMP/baseline.tsv")
             # git hash-object gives the blob SHA of OUR copy, directly
             # comparable to upstream's. Missing file -> empty.
@@ -182,7 +201,10 @@ jobs:
           UPD=$(wc -l < "$RUNNER_TEMP/to-update.txt" | tr -d ' ')
           KEPT=$(wc -l < "$RUNNER_TEMP/kept-local.txt" | tr -d ' ')
           CONF=$(wc -l < "$RUNNER_TEMP/conflicts.txt" | tr -d ' ')
-          echo "take-upstream=$UPD  keep-local=$KEPT  conflicts=$CONF"
+          IGN=$(wc -l < "$RUNNER_TEMP/ignored.txt" | tr -d ' ')
+          echo "take-upstream=$UPD  keep-local=$KEPT  conflicts=$CONF  gitignored=$IGN"
+          # Say what was dropped. A silent skip reads as "covered everything".
+          if [ "$IGN" -gt 0 ]; then echo "skipped (gitignored by this mirror):"; sed 's/^/    /' "$RUNNER_TEMP/ignored.txt"; fi
           if [ "$KEPT" -gt 0 ]; then echo "kept (local-only edits, NOT reverted):"; sed 's/^/    /' "$RUNNER_TEMP/kept-local.txt"; fi
           if [ "$CONF" -gt 0 ]; then echo "CONFLICTS (both sides changed):";        sed 's/^/    /' "$RUNNER_TEMP/conflicts.txt"; fi
 
