@@ -263,8 +263,16 @@ jobs:
             echo "  updated: $path"
           done < "$RUNNER_TEMP/to-update.txt"
 
+      # UNCONDITIONAL on purpose. Gating this on `updated != '0'` freezes the
+      # baseline, because the runs that copy nothing are the common case — every
+      # run after you adopt upstream's own bytes by hand short-circuits on
+      # byte-equality and copies nothing. The compare then keeps scoring against
+      # a snapshot that stopped tracking the mirror, and the next genuine
+      # upstream-only change reads as "both sides moved" and halts on a phantom
+      # conflict. Diagnosed on raycast-karakeep 2026-08-13 (0369178, ac103cf):
+      # baseline pinned at 2026-08-03, 77 files against upstream's 88, two green
+      # no-op runs, then three phantom conflicts.
       - name: Record the new baseline
-        if: steps.compare.outputs.updated != '0'
         shell: bash
         run: |
           set -euo pipefail
@@ -281,8 +289,53 @@ jobs:
               files: ($tsv | rtrimstr("\n") | split("\n")
                        | map(select(length > 0) | split("\t") | {(.[0]): .[1]})
                        | add // {})
-            }' > "$STATE_FILE"
-          echo "recorded $(jq '.files | length' "$STATE_FILE") files"
+            }' > "$RUNNER_TEMP/state.new"
+
+          # `synced_at` changes on EVERY run, so writing this file unconditionally
+          # would make it always differ from the committed copy — and, now that
+          # recording is unconditional, produce a junk commit on every scheduled
+          # run forever. Compare only the parts that carry meaning; when they
+          # match, keep the committed file so the tree stays clean.
+          if git show "HEAD:$STATE_FILE" > "$RUNNER_TEMP/state.old" 2>/dev/null &&
+             [ "$(jq -S '{upstream_commit, files}' "$RUNNER_TEMP/state.old")" = \
+               "$(jq -S '{upstream_commit, files}' "$RUNNER_TEMP/state.new")" ]; then
+            cp "$RUNNER_TEMP/state.old" "$STATE_FILE"
+            echo "baseline already current ($(jq '.files | length' "$STATE_FILE") files); timestamp left untouched"
+          else
+            cp "$RUNNER_TEMP/state.new" "$STATE_FILE"
+            echo "recorded $(jq '.files | length' "$STATE_FILE") files"
+          fi
+
+      # When files WERE copied, the PR step below stages the baseline alongside
+      # them, so it only needs its own commit when there is no PR to ride on.
+      # Restricted to the default branch on purpose. workflow_dispatch can be
+      # fired against any ref — another branch, or a tag, where a push would
+      # either fail or land somewhere nobody expects. The baseline only ever
+      # describes the mirror's mainline, so a run from anywhere else computes it
+      # and stops.
+      - name: Commit the refreshed baseline when no PR will carry it
+        if: >-
+          steps.compare.outputs.updated == '0' &&
+          github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "$STATE_FILE"; then
+            echo "Baseline already current; nothing to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Stage ONLY the bookkeeping file. No extension source moves here, so
+          # this does not weaken the rule that merging a PR is the only thing
+          # that writes upstream CONTENT to main.
+          git add -- "$STATE_FILE"
+          git commit -m "chore: record upstream sync baseline ${{ steps.compare.outputs.commit }}"
+          # A rejected push (main moved mid-run) fails the job on purpose — the
+          # next scheduled run recomputes and retries. Swallowing it here would
+          # recreate the silent staleness this step exists to prevent.
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
 
       - name: Open a pull request
         if: steps.compare.outputs.updated != '0'
