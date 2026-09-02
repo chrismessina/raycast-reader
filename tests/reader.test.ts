@@ -660,6 +660,39 @@ describe("bypass candidate quality gate (loader level)", () => {
       await new Promise((resolve) => server.close(resolve));
     }
   });
+
+  // Greptile (3rd): the cleaner's gate list was a hand-picked SUBSET of the detector's
+  // BARRIER_SELECTORS, so selectors like [class*="meter-"], .pw-overlay, and [class*="barrier"]
+  // still leaked their gating text into the extraction. The cleaner now strips the detector's
+  // whole list, so an embedded gate using ANY recognized selector is removed.
+  it("strips an embedded gate using a selector only the detector previously knew (barrier/meter)", async () => {
+    const body = "The harbor filled with fog as the last of the fishing boats made for the breakwater. ".repeat(24);
+    const articleWithBarrierGate =
+      `<!doctype html><html><head><title>The Harbor</title></head><body><article><h1>The Harbor</h1>` +
+      `<p>${body}</p>` +
+      `<div class="content-barrier meter-gate">Subscribe to read the rest of this story. Already a subscriber?</div>` +
+      `<p>${body}</p>` +
+      `</article></body></html>`;
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "text/html" });
+      res.end(articleWithBarrierGate);
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    const url = `http://127.0.0.1:${address.port}/article`;
+
+    try {
+      const result = await loadArticleViaPaywallHopper(url, { showArticleImage: false });
+      assert.equal(result.status, "success", "a gate using a detector-only selector must not sink the article");
+      assert.ok(
+        result.status === "success" && !result.article.textContent.includes("Already a subscriber"),
+        "the barrier/meter gate's text should have been stripped",
+      );
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
 });
 
 describe("Condé Nast paywall-class content", () => {
@@ -694,5 +727,23 @@ describe("Condé Nast paywall-class content", () => {
       null,
       "the overlay container (an aside/div) should still be removed",
     );
+  });
+
+  // Codex (on the shared-barrier consolidation): `.subscriber-only` marks gated *content*, not
+  // gate UI. The per-element 30% guard and `:not(p)` don't protect SEGMENTED content — sibling
+  // subscriber-only blocks each under 30% would all be deleted, gutting the article. The cleaner
+  // must NOT delete these (detection still scores them from the raw html).
+  it("does not delete segmented subscriber-only article content", () => {
+    const para = "Subscriber-exclusive reporting that must survive the cleaning pass. ".repeat(8);
+    // Four sibling content blocks, each ~25% of the page — all below the 30% protection guard.
+    const blocks = Array.from({ length: 4 }, () => `<div class="subscriber-only"><p>${para}</p></div>`).join("");
+    const { document } = parseHTML(`<html><body><article><h1>Members Feature</h1>${blocks}</article></body></html>`);
+    preCleanHtml(document, "https://example.com/members/feature");
+    const text = document.body?.textContent ?? "";
+    assert.ok(
+      text.includes("Subscriber-exclusive reporting"),
+      "subscriber-only content must survive — deleting it guts the article",
+    );
+    assert.ok(text.length > 1000, `expected the segmented content to remain, got ${text.length} chars`);
   });
 });

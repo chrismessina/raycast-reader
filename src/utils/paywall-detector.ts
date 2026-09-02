@@ -77,7 +77,7 @@ const SUSPICIOUSLY_SHORT_ARTICLE = 900;
  * conclusive on its own: no publisher ships an element named `--paywall-inline-barrier`
  * around an article they intend you to read.
  */
-const BARRIER_SELECTORS = [
+export const BARRIER_SELECTORS = [
   ...PAYWALL_SELECTORS,
   '[class*="barrier"]',
   '[class*="regwall"]',
@@ -338,7 +338,7 @@ function isElementHidden(element: MinimalElement, rules: HidingRules): boolean {
  * and the previous regex matcher was case-insensitive — without this, moving to the DOM would
  * silently start missing them.
  */
-function caseInsensitive(selector: string): string {
+export function caseInsensitive(selector: string): string {
   return selector.replace(/(=["'][^"']*["'])\]/g, "$1 i]");
 }
 
