@@ -166,7 +166,7 @@ jobs:
             # Skipping is the correct resolution, not `git add -f`: the mirror's
             # .gitignore is a deliberate statement that this path does not belong
             # in this repo, and forcing it would commit exactly what was excluded.
-            if git check-ignore -q -- "$path" 2>/dev/null; then
+            if git check-ignore -q --no-index -- "$path" 2>/dev/null; then
               printf '%s\n' "$path" >> "$RUNNER_TEMP/ignored.txt"
               continue
             fi
@@ -231,7 +231,7 @@ jobs:
             # Still served upstream? Then it was not deleted.
             awk -F'\t' -v p="$path" '$1==p{f=1} END{exit !f}' "$RUNNER_TEMP/upstream.tsv" && continue
             # Gitignored here, already gone, or never tracked: nothing to do.
-            git check-ignore -q -- "$path" 2>/dev/null && continue
+            git check-ignore -q --no-index -- "$path" 2>/dev/null && continue
             [ -f "$path" ] || continue
             git ls-files --error-unmatch -- "$path" >/dev/null 2>&1 || continue
 
