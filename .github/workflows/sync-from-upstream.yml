@@ -30,9 +30,15 @@ name: Sync from upstream
 #   yes                no                  take upstream (stamp, PNGs, fixes)
 #   no                 yes                 KEEP YOURS  ← the README case
 #   yes                yes                 CONFLICT → open an issue, sync nothing
+#   DELETED upstream   no                  propagate the deletion
+#   DELETED upstream   yes                 KEEP YOURS (it becomes local-only)
 #
 # Row 3 is what used to lose. Row 4 is genuinely ambiguous and must never be
 # resolved by a script.
+#
+# The two DELETED rows are computed from the baseline, not from the upstream
+# listing — the listing only says what exists now, so a removed file is
+# invisible to it. See the deletion block in the compare step.
 #
 # STAGGER THE CRON MINUTE per repo. GitHub queues same-minute schedules across
 # all of Actions, and scheduled runs are already best-effort under load.
@@ -198,18 +204,75 @@ jobs:
             fi
           done < "$RUNNER_TEMP/upstream.tsv"
 
+          # -- UPSTREAM DELETIONS ------------------------------------------
+          #
+          # The loop above only visits paths upstream serves NOW, so a file
+          # upstream removed is never seen by it and would live in the mirror
+          # forever. The blind workflow this one replaced did propagate
+          # deletions, by diffing `git ls-files` against its download manifest;
+          # dropping that was a silent capability regression carried since
+          # 2026-08-03.
+          #
+          # The baseline makes this strictly better informed than that manifest
+          # diff was. A path in the baseline and absent from upstream.tsv is an
+          # unambiguous upstream deletion — no guessing from a file count. It
+          # also needs none of the blind version's subdirectory scoping: the
+          # baseline only ever contains paths upstream served, so a local-only
+          # file (AGENTS.md, CLAUDE.md, .github/) is structurally incapable of
+          # becoming a deletion candidate. That scoping existed to patch a
+          # `git ls-files` scan that had no such guarantee, after karakeep run
+          # 30651601868 (2026-07-31) removed package.json, tsconfig.json and
+          # the workflow itself while reporting success.
+          : > "$RUNNER_TEMP/to-delete.txt"
+          : > "$RUNNER_TEMP/deleted-upstream-kept.txt"
+
+          while IFS=$'\t' read -r path base_sha; do
+            [ -n "$path" ] || continue
+            # Still served upstream? Then it was not deleted.
+            awk -F'\t' -v p="$path" '$1==p{f=1} END{exit !f}' "$RUNNER_TEMP/upstream.tsv" && continue
+            # Gitignored here, already gone, or never tracked: nothing to do.
+            git check-ignore -q -- "$path" 2>/dev/null && continue
+            [ -f "$path" ] || continue
+            git ls-files --error-unmatch -- "$path" >/dev/null 2>&1 || continue
+
+            if [ "$(git hash-object "$path")" = "$base_sha" ]; then
+              printf '%s\n' "$path" >> "$RUNNER_TEMP/to-delete.txt"
+            else
+              # Upstream dropped it AND we changed it. Ambiguous, and the
+              # fail-safe direction is the same as row 3 of the table above:
+              # keep ours. It leaves the next baseline (which records what
+              # upstream serves) and simply becomes a local-only file.
+              printf '%s\n' "$path" >> "$RUNNER_TEMP/deleted-upstream-kept.txt"
+            fi
+          done < "$RUNNER_TEMP/baseline.tsv"
+
+          # Refuse a mass deletion unattended. A legitimate upstream
+          # restructure and a resolution bug that pointed at the wrong subtree
+          # look identical here, and only one of them is recoverable from a
+          # review. Fail closed and let a human look.
+          DEL=$(wc -l < "$RUNNER_TEMP/to-delete.txt" | tr -d ' ')
+          BASE_N=$(wc -l < "$RUNNER_TEMP/baseline.tsv" | tr -d ' ')
+          if [ "$DEL" -gt 0 ] && [ "$BASE_N" -gt 0 ] && [ $((DEL * 2)) -gt "$BASE_N" ]; then
+            echo "ABORT: $DEL of $BASE_N baseline files vanished upstream — refusing to propagate a deletion that large."
+            exit 1
+          fi
+
           UPD=$(wc -l < "$RUNNER_TEMP/to-update.txt" | tr -d ' ')
           KEPT=$(wc -l < "$RUNNER_TEMP/kept-local.txt" | tr -d ' ')
           CONF=$(wc -l < "$RUNNER_TEMP/conflicts.txt" | tr -d ' ')
           IGN=$(wc -l < "$RUNNER_TEMP/ignored.txt" | tr -d ' ')
-          echo "take-upstream=$UPD  keep-local=$KEPT  conflicts=$CONF  gitignored=$IGN"
+          DELKEPT=$(wc -l < "$RUNNER_TEMP/deleted-upstream-kept.txt" | tr -d ' ')
+          echo "take-upstream=$UPD  delete=$DEL  keep-local=$KEPT  conflicts=$CONF  gitignored=$IGN"
           # Say what was dropped. A silent skip reads as "covered everything".
           if [ "$IGN" -gt 0 ]; then echo "skipped (gitignored by this mirror):"; sed 's/^/    /' "$RUNNER_TEMP/ignored.txt"; fi
           if [ "$KEPT" -gt 0 ]; then echo "kept (local-only edits, NOT reverted):"; sed 's/^/    /' "$RUNNER_TEMP/kept-local.txt"; fi
           if [ "$CONF" -gt 0 ]; then echo "CONFLICTS (both sides changed):";        sed 's/^/    /' "$RUNNER_TEMP/conflicts.txt"; fi
+          if [ "$DEL" -gt 0 ]; then echo "removed (upstream no longer serves):";     sed 's/^/    /' "$RUNNER_TEMP/to-delete.txt"; fi
+          if [ "$DELKEPT" -gt 0 ]; then echo "kept (upstream removed, changed here):"; sed 's/^/    /' "$RUNNER_TEMP/deleted-upstream-kept.txt"; fi
 
           {
             echo "updated=$UPD"
+            echo "deleted=$DEL"
             echo "kept=$KEPT"
             echo "conflicts=$CONF"
           } >> "$GITHUB_OUTPUT"
@@ -316,6 +379,7 @@ jobs:
       - name: Commit the refreshed baseline when no PR will carry it
         if: >-
           steps.compare.outputs.updated == '0' &&
+          steps.compare.outputs.deleted == '0' &&
           github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         shell: bash
         run: |
@@ -338,7 +402,9 @@ jobs:
           git push origin "HEAD:${{ github.event.repository.default_branch }}"
 
       - name: Open a pull request
-        if: steps.compare.outputs.updated != '0'
+        if: >-
+          steps.compare.outputs.updated != '0' ||
+          steps.compare.outputs.deleted != '0'
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -349,7 +415,15 @@ jobs:
 
           # Stage ONLY what this run touched. `git add -A` would sweep in
           # anything else present in the tree.
-          cut -f1 "$RUNNER_TEMP/to-update.txt" | tr '\n' '\0' | xargs -0 git add --
+          if [ -s "$RUNNER_TEMP/to-update.txt" ]; then
+            cut -f1 "$RUNNER_TEMP/to-update.txt" | tr '\n' '\0' | xargs -0 git add --
+          fi
+          # Propagate the upstream deletions computed in the compare step. They
+          # ride the PR like every other content change — nothing removes a
+          # tracked file from main without a review.
+          if [ -s "$RUNNER_TEMP/to-delete.txt" ]; then
+            tr '\n' '\0' < "$RUNNER_TEMP/to-delete.txt" | xargs -0 git rm -q --
+          fi
           git add -- "$STATE_FILE"
 
           if git diff --cached --quiet; then
@@ -366,9 +440,25 @@ jobs:
             exit 0
           fi
 
-          git switch -c "$BRANCH"
-          git commit -m "chore: sync from upstream raycast/extensions"
-          git push -u origin "$BRANCH"
+          # Reuse the branch if a previous run already pushed it. The failure this
+          # guards is real: on 2026-08-27 raycast-store-updates run 33111251375
+          # pushed this branch and THEN had `gh pr create` refused ("GitHub Actions
+          # is not permitted to create or approve pull requests"), leaving a branch
+          # with no PR. Every run after re-derived the same commit-keyed name, made
+          # a fresh commit, and died on non-fast-forward — wedged for six days.
+          #
+          # Not `--force`: the guard above only sees OPEN PRs, so a closed-but-
+          # undeleted PR, or a manual commit someone pushed onto this branch to fix
+          # it up, would be silently overwritten. And `set -e` does not cover that
+          # `gh | grep` guard — it is an `if` test, which bash exempts from errexit,
+          # so an API blip reads as "no open PR" exactly when force must not fire.
+          if [ -n "$(git ls-remote --heads origin "refs/heads/$BRANCH")" ]; then
+            echo "Branch $BRANCH already pushed; creating its missing PR."
+          else
+            git switch -c "$BRANCH"
+            git commit -m "chore: sync from upstream raycast/extensions"
+            git push -u origin "$BRANCH"
+          fi
 
           KEPT_NOTE=""
           if [ "${{ steps.compare.outputs.kept }}" != "0" ]; then
@@ -376,23 +466,40 @@ jobs:
               "$(sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/kept-local.txt")")
           fi
 
+          DEL_NOTE=""
+          if [ -s "$RUNNER_TEMP/to-delete.txt" ]; then
+            DEL_NOTE=$(printf '\n### Removed (upstream no longer serves them)\n\n%s\n' \
+              "$(sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/to-delete.txt")")
+          fi
+          if [ -s "$RUNNER_TEMP/deleted-upstream-kept.txt" ]; then
+            DEL_KEPT=$(printf '\n### Removed upstream, but KEPT here\n\nUpstream dropped these and they were also changed in this mirror, so they were left alone and are now local-only:\n\n%s\n' \
+              "$(sed 's/^/- `/; s/$/`/' "$RUNNER_TEMP/deleted-upstream-kept.txt")")
+            DEL_NOTE="${DEL_NOTE}${DEL_KEPT}"
+          fi
+
           PR_REF=""
           if [ -n "${{ github.event.client_payload.pr_number }}" ]; then
             PR_REF=$(printf '\nTriggered by raycast/extensions#%s.' "${{ github.event.client_payload.pr_number }}")
           fi
 
-          BODY=$(printf 'Brings this mirror up to date with the merged monorepo state.\n\nUpstream commit: [`%s`](https://github.com/raycast/extensions/commit/%s)%s\n\n### Files taken from upstream (%s)\n\n%s\n%s\n---\n\nOpened automatically. Merging this PR is the only thing that writes to `main` — review the diff and merge when it looks right. If it contains someone else'"'"'s contribution, credit them in `CHANGELOG.md` before merging.\n' \
+          BODY=$(printf 'Brings this mirror up to date with the merged monorepo state.\n\nUpstream commit: [`%s`](https://github.com/raycast/extensions/commit/%s)%s\n\n### Files taken from upstream (%s)\n\n%s\n%s%s\n---\n\nOpened automatically. Merging this PR is the only thing that writes to `main` — review the diff and merge when it looks right. If it contains someone else'"'"'s contribution, credit them in `CHANGELOG.md` before merging.\n' \
             "${{ steps.compare.outputs.commit }}" \
             "${{ steps.compare.outputs.commit }}" \
             "$PR_REF" \
             "${{ steps.compare.outputs.updated }}" \
             "$(cut -f1 "$RUNNER_TEMP/to-update.txt" | sed 's/^/- `/; s/$/`/')" \
+            "$DEL_NOTE" \
             "$KEPT_NOTE")
 
-          gh pr create --title "chore: sync from upstream raycast/extensions" --body "$BODY"
+          gh pr create --base "${{ github.event.repository.default_branch }}" --head "$BRANCH" \
+            --title "chore: sync from upstream raycast/extensions" --body "$BODY"
 
       - name: Report when nothing changed
-        if: steps.compare.outputs.updated == '0' && steps.compare.outputs.conflicts == '0'
+        if: >-
+          steps.compare.outputs.updated == '0' &&
+          steps.compare.outputs.deleted == '0' &&
+          steps.compare.outputs.conflicts == '0'
         run: |
           echo "Mirror is up to date with upstream."
           echo "Local-only edits preserved: ${{ steps.compare.outputs.kept }}"
+
