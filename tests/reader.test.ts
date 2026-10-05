@@ -17,6 +17,11 @@ import assert from "node:assert/strict";
 import { parseArticle } from "../src/utils/readability";
 import { detectPaywall } from "../src/utils/paywall-detector";
 import { preCleanHtml } from "../src/utils/html-cleaner";
+import { regenerateNeedsRevalidate } from "../src/utils/summarizer";
+import { getAIConfigForStyle, SUMMARY_MODELS, DEFAULT_SUMMARY_MODEL } from "../src/config/ai";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { AI, stubPreferences } from "./raycast-api-stub";
 import {
   loadFixture,
   loadPrivateFixture,
@@ -214,7 +219,7 @@ describe("paywall detection", () => {
       {
         textContent: "Three sentences of an actual, quite short post.",
         description:
-          "A long, search-engine-optimised description that the CMS generated automatically " +
+          "A long, search-engine-optimized description that the CMS generated automatically " +
           "and which runs considerably longer than the post it describes.",
       },
     ],
@@ -745,5 +750,77 @@ describe("Condé Nast paywall-class content", () => {
       "subscriber-only content must survive — deleting it guts the article",
     );
     assert.ok(text.length > 1000, `expected the segmented content to remain, got ${text.length} chars`);
+  });
+});
+
+describe("Summary Model preference", () => {
+  const withModel = (summaryModel: string | undefined, fn: () => void) => {
+    stubPreferences.summaryModel = summaryModel;
+    try {
+      fn();
+    } finally {
+      delete stubPreferences.summaryModel;
+    }
+  };
+
+  it("keeps each style's own model when the preference is default or unset", () => {
+    withModel("default", () => assert.equal(getAIConfigForStyle("eli5").model, "openai-gpt-5.4-nano"));
+    withModel(undefined, () => assert.equal(getAIConfigForStyle("eli5").model, "openai-gpt-5.4-nano"));
+  });
+
+  it("uses the picked model and keeps the style's creativity", () => {
+    withModel("Anthropic_Claude_Haiku_4.5", () => {
+      const config = getAIConfigForStyle("eli5");
+      assert.equal(config.model, "anthropic-claude-4-5-haiku");
+      assert.equal(config.creativity, "medium");
+    });
+  });
+
+  it("lets a model picked with Regenerate with Model… override the preference", () => {
+    withModel("Anthropic_Claude_Haiku_4.5", () =>
+      assert.equal(getAIConfigForStyle("eli5", "OpenAI_GPT-5.4_nano").model, "openai-gpt-5.4-nano"),
+    );
+  });
+
+  it("resolves every offered model to itself", () => {
+    const models: Record<string, string> = AI.Model;
+    for (const { key } of SUMMARY_MODELS) {
+      withModel(key, () => assert.equal(getAIConfigForStyle("overview").model, models[key], key));
+    }
+  });
+
+  it("offers the same models in the preference and the Regenerate submenu", () => {
+    const manifest = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8"));
+    const pref = manifest.preferences.find((p: { name: string }) => p.name === "summaryModel");
+    const prefKeys = pref.data.map((d: { value: string }) => d.value).filter((v: string) => v !== "default");
+    const menuKeys = SUMMARY_MODELS.map((m) => m.key).filter((k) => k !== DEFAULT_SUMMARY_MODEL);
+    assert.deepEqual(prefKeys, menuKeys);
+  });
+
+  it("falls back to the default when Raycast no longer has the picked model", () => {
+    withModel("OpenAI_GPT-4_retired", () => assert.equal(getAIConfigForStyle("overview").model, "openai-gpt-5.4-nano"));
+  });
+});
+
+describe("Regenerate", () => {
+  const request = {
+    prompt: "summarize X",
+    currentPrompt: "summarize X",
+    fromCache: false,
+    model: "OpenAI_GPT-5.4_nano",
+    currentModel: "OpenAI_GPT-5.4_nano",
+  };
+
+  it("forces a re-run when the same model regenerates a summary generated this session", () => {
+    assert.equal(regenerateNeedsRevalidate(request), true);
+  });
+
+  it("lets useAI re-run by itself when the summary came from the cache", () => {
+    assert.equal(regenerateNeedsRevalidate({ ...request, fromCache: true }), false);
+  });
+
+  it("lets useAI re-run by itself when the model or prompt changes", () => {
+    assert.equal(regenerateNeedsRevalidate({ ...request, model: "Anthropic_Claude_Haiku_4.5" }), false);
+    assert.equal(regenerateNeedsRevalidate({ ...request, currentPrompt: "" }), false);
   });
 });

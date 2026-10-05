@@ -220,7 +220,7 @@ const INERT_TAGS = new Set(["TEMPLATE", "HEAD", "SCRIPT", "STYLE", "NOSCRIPT"]);
  * Class and id selectors that a page's own stylesheets hide (`display:none` / `visibility:hidden`).
  *
  * Only simple `.class` / `#id` selectors are collected — the shapes actually used to toggle a
- * paywall template, and enough to recognise the common case Greptile flagged. A compound or
+ * paywall template, and enough to recognize the common case Greptile flagged. A compound or
  * descendant selector we can't cheaply evaluate is skipped, which errs toward treating the
  * element as visible (a possible missed positive, never a false one).
  */
