@@ -486,25 +486,31 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
     }
   }, [article, shouldShowSummary, summaryInitialized, handleSummarize, preferences.defaultSummaryStyle]);
 
-  // Handler to fetch content via browser extension after user opens the page
+  // Handler to fetch content via browser extension after user opens the page. One at a time:
+  // a second press while the first is in flight would let a late failure cover a success.
+  const fetchingFromBrowserRef = useRef(false);
   const handleFetchFromBrowser = useCallback(async () => {
-    if (!blockedUrl) return;
+    if (!blockedUrl || fetchingFromBrowserRef.current) return;
+    fetchingFromBrowserRef.current = true;
 
     setIsWaitingForBrowser(true);
     setError(null);
     setBrowserFetchError(null);
 
-    const result = await getContentFromActiveTab(blockedUrl);
+    try {
+      const result = await getContentFromActiveTab(blockedUrl);
 
-    if (result.success) {
-      setArticle(result.article);
-      setBlockedUrl(null);
-    } else {
-      setError(result.error);
-      setBrowserFetchError(result.error);
+      if (result.success) {
+        setArticle(result.article);
+        setBlockedUrl(null);
+      } else {
+        setError(result.error);
+        setBrowserFetchError(result.error);
+      }
+    } finally {
+      fetchingFromBrowserRef.current = false;
+      setIsWaitingForBrowser(false);
     }
-
-    setIsWaitingForBrowser(false);
   }, [blockedUrl]);
 
   // Handler to reimport content from browser tab

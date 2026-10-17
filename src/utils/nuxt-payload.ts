@@ -92,13 +92,25 @@ function dropRawText(html: string): string {
   return out + html.slice(last);
 }
 
-/** The text a reader would see, as the DOM's textContent reads it: "<a>Portland</a>, is" is "Portland, is". */
+/** Removes comments, one pass; an unclosed one runs to the end. */
+function dropComments(html: string): string {
+  let out = "";
+  let last = 0;
+  for (let open = html.indexOf("<!--"); open !== -1; open = html.indexOf("<!--", last)) {
+    out += html.slice(last, open);
+    const close = html.indexOf("-->", open + 4);
+    if (close === -1) return out;
+    last = close + 3;
+  }
+  return out + html.slice(last);
+}
+
+/**
+ * The text a reader would see, as the DOM's textContent reads it: "<a>Portland</a>, is" is
+ * "Portland, is". A tag can't contain "<", which keeps a run of unclosed "<" linear.
+ */
 function visibleText(html: string): string {
-  return decodeEntities(
-    dropRawText(html)
-      .replace(/<!--[\s\S]*?-->/g, "")
-      .replace(/<[^>]*>/g, ""),
-  )
+  return decodeEntities(dropComments(dropRawText(html)).replace(/<[^<>]*>/g, ""))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -150,18 +162,28 @@ function findCandidates(payload: Payload): Candidate[] {
     }
     return read;
   };
-  const toBlock = (value: unknown): Block | null => {
-    if (!isRecord(value) || HEAD_TAG_KEYS.some((key) => key in value)) return null;
-    for (const field of BODY_FIELDS) {
-      const index = resolve(payload, value[field]);
-      const read = index === -1 ? null : readMarkup(index);
-      if (read) {
-        const type = payload[resolve(payload, value.type)];
-        return { ...read, type: typeof type === "string" ? type : "" };
+  // Blocks are shared, too: any number of lists can point at one block object.
+  const blockCache = new Map<number, Block | null>();
+  const toBlock = (index: number): Block | null => {
+    if (blockCache.has(index)) return blockCache.get(index)!;
+    const value = payload[index];
+    let block: Block | null = null;
+    if (isRecord(value) && !HEAD_TAG_KEYS.some((key) => key in value)) {
+      for (const field of BODY_FIELDS) {
+        const at = resolve(payload, value[field]);
+        const read = at === -1 ? null : readMarkup(at);
+        if (read) {
+          const type = payload[resolve(payload, value.type)];
+          block = { ...read, type: typeof type === "string" ? type : "" };
+          break;
+        }
       }
     }
-    return null;
+    blockCache.set(index, block);
+    return block;
   };
+  // Lists holding the same blocks in the same order are one candidate, however many there are.
+  const listed = new Set<string>();
 
   const seen = new Set<number>();
   const queue: number[] = [0];
@@ -176,26 +198,33 @@ function findCandidates(payload: Payload): Candidate[] {
     }
     if (Array.isArray(value)) {
       const blocks: Block[] = [];
-      const listed = new Set<number>();
+      const indexes: number[] = [];
+      const inList = new Set<number>();
       let textLength = 0;
       let htmlLength = 0;
       let tags = 0;
       for (const child of value) {
         const resolved = resolve(payload, child);
-        if (resolved === -1 || listed.has(resolved)) continue;
-        listed.add(resolved);
-        const block = toBlock(payload[resolved]);
+        if (resolved === -1 || inList.has(resolved)) continue;
+        inList.add(resolved);
+        const block = toBlock(resolved);
         if (!block) continue;
         blocks.push(block);
+        indexes.push(resolved);
         textLength += block.text.length;
         htmlLength += block.html.length;
-        tags += block.tags;
+        // Each block also gets a wrapping element when it's built.
+        tags += block.tags + 2;
         if (htmlLength > MAX_ARTICLE_HTML_LENGTH || tags > MAX_ARTICLE_TAGS) break;
       }
       const withText = blocks.filter((block) => block.text).length;
       const bounded = htmlLength <= MAX_ARTICLE_HTML_LENGTH && tags <= MAX_ARTICLE_TAGS;
       if (bounded && withText >= MIN_BLOCKS && textLength >= MIN_ARTICLE_TEXT_LENGTH) {
-        candidates.push({ blocks, textLength });
+        const key = indexes.join();
+        if (!listed.has(key)) {
+          listed.add(key);
+          candidates.push({ blocks, textLength });
+        }
       }
     }
     const children = Array.isArray(value) ? value : isRecord(value) ? Object.values(value) : [];

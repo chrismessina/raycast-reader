@@ -49,14 +49,26 @@ export function asciiLower(text: string): string {
   return text.replace(/[A-Z]+/g, (run) => run.toLowerCase());
 }
 
+/**
+ * The Latin-1 named entities, in code point order from U+00A0: "nbsp" is 160, "yuml" is 255.
+ * Names are case-sensitive: "Eacute" is É, "eacute" is é.
+ */
+const LATIN1_NAMES =
+  "nbsp iexcl cent pound curren yen brvbar sect uml copy ordf laquo not shy reg macr deg plusmn sup2 sup3 " +
+  "acute micro para middot cedil sup1 ordm raquo frac14 frac12 frac34 iquest Agrave Aacute Acirc Atilde Auml " +
+  "Aring AElig Ccedil Egrave Eacute Ecirc Euml Igrave Iacute Icirc Iuml ETH Ntilde Ograve Oacute Ocirc Otilde " +
+  "Ouml times Oslash Ugrave Uacute Ucirc Uuml Yacute THORN szlig agrave aacute acirc atilde auml aring aelig " +
+  "ccedil egrave eacute ecirc euml igrave iacute icirc iuml eth ntilde ograve oacute ocirc otilde ouml divide " +
+  "oslash ugrave uacute ucirc uuml yacute thorn yuml";
+
 // The named entities common in article text; anything else is left encoded.
 const ENTITIES: Record<string, string> = {
+  ...Object.fromEntries(LATIN1_NAMES.split(" ").map((name, i) => [name, String.fromCharCode(160 + i)])),
   amp: "&",
   lt: "<",
   gt: ">",
   quot: '"',
   apos: "'",
-  nbsp: "\u00A0",
   mdash: "—",
   ndash: "–",
   hellip: "…",
@@ -64,26 +76,17 @@ const ENTITIES: Record<string, string> = {
   rsquo: "’",
   ldquo: "“",
   rdquo: "”",
-  laquo: "«",
-  raquo: "»",
-  middot: "·",
   bull: "•",
-  copy: "©",
-  reg: "®",
   trade: "™",
-  deg: "°",
-  times: "×",
-  pound: "£",
   euro: "€",
-  yen: "¥",
-  cent: "¢",
 };
 
 /** Decodes numeric entities and the named ones in `ENTITIES`. */
 export function decodeEntities(text: string): string {
-  return text.replace(/&(#x[0-9a-f]{1,6}|#[0-9]{1,7}|[a-z]{2,6});/gi, (entity, code: string) => {
+  return text.replace(/&(#x[0-9a-f]{1,6}|#[0-9]{1,7}|[a-z][a-z0-9]{1,7});/gi, (entity, code: string) => {
     const lower = code.toLowerCase();
-    if (lower[0] !== "#") return ENTITIES[lower] ?? entity;
+    // Exact case first ("Eacute"), then any case for the rest ("&AMP;" is still "&").
+    if (lower[0] !== "#") return ENTITIES[code] ?? ENTITIES[lower] ?? entity;
     const point = lower[1] === "x" ? parseInt(lower.slice(2), 16) : parseInt(lower.slice(1), 10);
     return point <= 0x10ffff ? String.fromCodePoint(point) : entity;
   });

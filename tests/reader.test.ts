@@ -1402,6 +1402,61 @@ describe("Nuxt data payload", () => {
     });
   });
 
+  it("counts each block's wrapper against the tag budget", () => {
+    const payload: unknown[] = [{ list: 1 }, [], `${openingText} ${"Opening paragraph text. ".repeat(30)}`, "x"];
+    const list = payload[1] as number[];
+    list.push(payload.push({ html: 2 }) - 1);
+    for (let i = 0; i < 80_000; i++) list.push(payload.push({ html: 3 }) - 1);
+    const page = `<!DOCTYPE html><html><body><article><p>${openingText}</p></article>${nuxt(payload)}</body></html>`;
+    const grew = heapGrowthMB(() => parseArticle(page, TEASER_URL));
+    assert.ok(grew < 40, `heap grew ${Math.round(grew)} MB`);
+  });
+
+  it("strips malformed markup in linear time", () => {
+    const list = paragraphs([opening, "<".repeat(160_000), "x" + "<!--".repeat(40_000)]);
+    const start = performance.now();
+    parseArticle(page(teaserBody, nuxt(payloadWith(list))), TEASER_URL);
+    assert.ok(performance.now() - start < 1500, `took ${Math.round(performance.now() - start)} ms`);
+  });
+
+  it("bounds memory across many lists of the same blocks", () => {
+    const payload: unknown[] = [[], "paragraph"];
+    const blocks = articleParagraphs.slice(1, 4).map((p) => payload.push({ type: 1, html: payload.push(p) - 1 }) - 1);
+    for (let i = 0; i < 250_000; i++) (payload[0] as number[]).push(payload.push(blocks) - 1);
+    const html = `<!DOCTYPE html><html><body><nav>Home</nav>${nuxt(payload)}</body></html>`;
+    const grew = heapGrowthMB(() => parseArticle(html, TEASER_URL));
+    assert.ok(grew < 60, `heap grew ${Math.round(grew)} MB`);
+  });
+
+  it("doesn't let a comment list that opens by quoting the article replace it", () => {
+    const comments = paragraphs([
+      `${openingText} — quoting the article, and I disagree with every word of it.`,
+      ...Array.from({ length: 30 }, (_, i) => `Comment ${i}: I have opinions about this acquisition, at length.`),
+    ]);
+    const result = parseArticle(page(fullArticle, nuxt(payloadWith(comments))), TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.textContent, /SENTINEL-LAST-PARAGRAPH/, "comments replaced the article");
+  });
+
+  it("doesn't count hidden text inside a visible element", () => {
+    const card = (i: number) => `Hidden card ${i}: a recommended story about something else, at some length.`;
+    const cards = paragraphs(Array.from({ length: 10 }, (_, i) => card(i)));
+    for (const hidden of [
+      `<blockquote><p hidden>${card(0)}</p></blockquote>`,
+      `<div><template><p>${card(0)}</p></template></div>`,
+    ]) {
+      const html = page(`<nav><a href="/">Home</a></nav>${hidden}`, nuxt(payloadWith(cards)));
+      assert.equal(parseArticle(html, TEASER_URL).success, false, `hidden text tied a list to the page: ${hidden}`);
+    }
+  });
+
+  it("decodes accented named entities like the page does", () => {
+    const renamed = articleParagraphs.map((p, i) => (i === 0 ? p.replace("Harbor Labs,", "Ren&eacute;e Labs,") : p));
+    const shown = `<article><p>${renamed[0].replace(/&nbsp;$/, "")}</p></article>`;
+    const result = parseArticle(page(shown, nuxt(payloadWith(paragraphs(renamed)))), TEASER_URL);
+    assert.ok(result.success && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent), "&eacute; broke the match");
+  });
+
   it(
     "reads the real bizjournals capture",
     { skip: !hasPrivateFixture("bizjournals-nuxt.html") && "no private corpus" },

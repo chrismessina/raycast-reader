@@ -60,8 +60,10 @@ Need custom article container selector?
 Need to completely restructure content?
   └─→ Create an extractor (rare)
 
-Page shows a teaser, but the full article is in <script id="__NUXT_DATA__">?
-  └─→ Already handled for any site by utils/nuxt-payload.ts; no extractor needed
+Page shows a teaser, but the full article is in <script id="__NUXT_DATA__"> as a list of
+html/text blocks?
+  └─→ utils/nuxt-payload.ts already reads it, for any site without a registered extractor.
+      A payload holding the article as one string isn't covered.
 ```
 
 ## Common Mistakes to Avoid

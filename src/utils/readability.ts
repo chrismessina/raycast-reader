@@ -82,6 +82,39 @@ const FALLBACK_SELECTORS = [
  */
 const PAYLOAD_PREFERENCE_RATIO = 1.5;
 
+/**
+ * How much of Readability's article a payload article must contain to replace it. A
+ * continuation of a teaser contains the teaser, which can be under half of what Readability
+ * found when it also kept the subscribe box; a comment quoting the article's opening contains
+ * one sentence of it.
+ */
+const MIN_CONTINUATION_SHARE = 0.25;
+
+/** Elements whose subtree is never text the page shows. */
+const UNSHOWN_ELEMENTS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "IFRAME"]);
+
+/**
+ * The text the page shows, in one walk over its text nodes, skipping hidden subtrees and the
+ * contents of scripts (which hold the payload itself). Not aria-hidden: a modal, the subscribe
+ * wall itself, marks the whole page behind it so.
+ */
+function shownText(document: LinkedomDocument): string {
+  const parts: string[] = [];
+  const stack: Node[] = document.body ? [document.body as unknown as Node] : [];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.nodeType === 3) {
+      parts.push(node.nodeValue ?? "");
+      continue;
+    }
+    if (node.nodeType !== 1) continue;
+    const el = node as Element;
+    if (UNSHOWN_ELEMENTS.has(el.tagName.toUpperCase()) || el.hasAttribute("hidden")) continue;
+    for (let i = el.childNodes.length - 1; i >= 0; i--) stack.push(el.childNodes[i]);
+  }
+  return parts.join("");
+}
+
 /** Minimum text for a generic container to be believable as the article. */
 const MIN_FALLBACK_TEXT_LENGTH = 200;
 
@@ -202,14 +235,7 @@ export function parseArticle(
     // Some pages show a teaser but ship the whole article in their Nuxt data payload. Read it,
     // and the article text the page shows, before cleaning, which can remove both.
     const nuxt = findNuxtArticles(document, url);
-    const pageText = nuxt
-      ? Array.from(document.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, blockquote"))
-          // Hidden text isn't what the page shows, and can't tie a payload list to it. Not
-          // aria-hidden: a modal (the subscribe wall itself) marks the whole page behind it so.
-          .filter((el) => !el.closest("[hidden], template"))
-          .map((el) => el.textContent ?? "")
-          .join("\n")
-      : "";
+    const pageText = nuxt ? shownText(document) : "";
     const fromPayload = (payload: PayloadArticle, reason: string) => {
       const recoveredFromPayload = payload.textContent.length > payload.shownLength * PAYLOAD_PREFERENCE_RATIO;
       parseLog.log("parse:nuxt-payload", { url, reason, textLength: payload.textContent.length, recoveredFromPayload });
@@ -313,10 +339,15 @@ export function parseArticle(
     }
 
     const textContent = article.textContent || "";
-    // The payload replaces Readability's article only when it continues it: it shares a
-    // paragraph with what Readability found, and holds well over that much text.
+    // The payload replaces Readability's article only when it continues it: it contains a real
+    // share of what Readability found, and holds well over that much text.
     const payload = nuxt?.pick(textContent) ?? null;
-    if (payload && payload.textContent.length > textContent.trim().length * PAYLOAD_PREFERENCE_RATIO) {
+    const shown = textContent.trim().length;
+    if (
+      payload &&
+      payload.shownLength >= shown * MIN_CONTINUATION_SHARE &&
+      payload.textContent.length > shown * PAYLOAD_PREFERENCE_RATIO
+    ) {
       return fromPayload(payload, "longer-than-page");
     }
 
