@@ -84,6 +84,7 @@ Need to completely restructure content?
 6. **Changing the summary models in one place only**
    - The models are listed twice: `SUMMARY_MODELS` in `src/config/ai.ts` (the "Regenerate with Model…" menu) and the `summaryModel` dropdown in `package.json`. Edit both; a test fails when they disagree.
    - Use `AI.Model` keys that are not marked `@deprecated` in `node_modules/@raycast/api/types/index.d.ts`. A stored key Raycast later removes falls back to the default model instead of failing.
+   - `npm run publish` runs `scripts/sync-summary-models.mjs` first. It fails when the installed `@raycast/api` is behind npm's latest, or when `ai.ts`, the `summaryModel` dropdown (including its "Default (…)" label), disagree, or the test stub is missing a model `ai.ts` uses. It checks every model `ai.ts` names (the menu, the default, and each style's `AI.Model[...]`). It replaces each deprecated model with the successor Raycast's types name, and moves each model to the newest version of its own line (`GPT-#_Terra`, `Gemini_#_Flash`). It rewrites `ai.ts`, `package.json`, and the test stub. When it changes anything, it stops the publish and asks you to run the tests and add a CHANGELOG line before publishing again. Moving to a different line (GPT-5.4 mini → GPT-5.6 Terra) is a judgment call the script does not make.
 
 ## File Structure
 

@@ -24,7 +24,10 @@
 import { urlLog, paywallLog } from "./logger";
 import { fetchHtml } from "./fetcher";
 import { parseArticle, ArticleContent } from "./readability";
-import { formatArticle } from "./markdown";
+import { formatArticle, dedupeArticleImage } from "./markdown";
+import { findMarkdownAlternate, isMarkdownResponse, pageHead, parseMarkdownArticle } from "./markdown-source";
+import { MetadataExtractor } from "./metadata-extractor";
+import { parseHTML } from "linkedom";
 import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
 import { tryBypassPaywall, createArchiveSource, PaywallHopperResult } from "./paywall-hopper";
 import { detectPaywall } from "./paywall-detector";
@@ -180,6 +183,87 @@ function buildBypassArticle(
   };
 }
 
+/** Below this much text, a Markdown alternate is treated as broken and the HTML page is used. */
+const MIN_MARKDOWN_TEXT_LENGTH = 200;
+
+/**
+ * Builds the article from Markdown: a `.md` URL opened directly, or a page's Markdown alternate.
+ *
+ * For an alternate, `page` is the HTML page that advertised it. Its `<head>` supplies the title,
+ * site name, author, and image, and only the `<head>` is parsed: the alternate replaces the
+ * body, so the page's DOM (tens of MB for a long article) is never built.
+ */
+function buildMarkdownArticle(
+  markdown: string,
+  markdownUrl: string,
+  url: string,
+  source: string,
+  showArticleImage: boolean | undefined,
+  page?: { html: string; url: string },
+): ArticleState {
+  const parsed = parseMarkdownArticle(markdown, markdownUrl);
+
+  const meta = page
+    ? MetadataExtractor.extract(parseHTML(`${pageHead(page.html)}</head><body></body>`).document, page.url)
+    : null;
+
+  let bodyMarkdown = parsed.body;
+  const image = showArticleImage !== false ? meta?.image : null;
+  if (image) bodyMarkdown = `![](${image})\n\n${dedupeArticleImage(bodyMarkdown, image)}`;
+
+  return {
+    bodyMarkdown,
+    title: meta?.title || parsed.title || fileTitle(markdownUrl) || "Untitled",
+    byline: meta?.author ?? null,
+    siteName: meta?.siteName ?? null,
+    url,
+    source,
+    textContent: parsed.textContent,
+  };
+}
+
+/** "…/my-notes.md" → "my-notes". */
+function fileTitle(url: string): string {
+  let name = new URL(url).pathname.split("/").pop() ?? "";
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // Malformed percent-encoding: keep the name as written
+  }
+  return name.replace(/\.(?:md|markdown)$/i, "");
+}
+
+/**
+ * Reads the Markdown alternate a page advertises. Null if it is missing, isn't Markdown (a
+ * catch-all route answering with the app's HTML shell), or has too little text to be the
+ * article; the caller then reads the HTML page as usual.
+ */
+async function loadMarkdownAlternate(
+  alternateUrl: string,
+  url: string,
+  source: string,
+  showArticleImage: boolean | undefined,
+  page: { html: string; url: string },
+): Promise<ArticleState | null> {
+  const fallback = (reason: string, detail: Record<string, unknown> = {}) => {
+    urlLog.log("markdown-alternate:fallback", { alternateUrl, reason, ...detail });
+    return null;
+  };
+  const result = await fetchHtml(alternateUrl);
+  if (!result.success) return fallback(result.error.message);
+  const { html: markdown, url: markdownUrl, contentType } = result.data;
+  if (!isMarkdownResponse(contentType, markdownUrl, markdown)) return fallback("not-markdown", { contentType });
+  try {
+    const article = buildMarkdownArticle(markdown, markdownUrl, url, source, showArticleImage, page);
+    if (article.textContent.length < MIN_MARKDOWN_TEXT_LENGTH) {
+      return fallback("too-short", { textLength: article.textContent.length });
+    }
+    return article;
+  } catch (err) {
+    return fallback("build-failed", { error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 /**
  * Loads and parses an article from a URL.
  * Handles fetch, parse, and format steps with proper error handling.
@@ -267,6 +351,34 @@ export async function loadArticleFromUrl(
     }
 
     return { status: "error", error: fetchResult.error.message };
+  }
+
+  // Step 1.5: Markdown. A .md URL is read as Markdown, never as HTML. A page that links a
+  // Markdown version of itself gets that version instead of an HTML parse.
+  const { html, url: finalUrl, contentType } = fetchResult.data;
+  const direct = isMarkdownResponse(contentType, finalUrl, html);
+  let markdownArticle: ArticleState | null = null;
+  if (direct) {
+    markdownArticle = buildMarkdownArticle(html, finalUrl, url, source, options.showArticleImage);
+  } else {
+    const alternateUrl = findMarkdownAlternate(html, finalUrl);
+    if (alternateUrl && alternateUrl !== finalUrl) {
+      progress("Fetching the Markdown version…");
+      urlLog.log("markdown-alternate:found", { url, alternateUrl });
+      markdownArticle = await loadMarkdownAlternate(alternateUrl, url, source, options.showArticleImage, {
+        html,
+        url: finalUrl,
+      });
+    }
+  }
+  if (markdownArticle) {
+    urlLog.log("session:ready", {
+      url,
+      title: markdownArticle.title,
+      markdownLength: markdownArticle.bodyMarkdown.length,
+      markdown: direct ? "direct" : "alternate",
+    });
+    return { status: "success", article: markdownArticle };
   }
 
   // Step 2: Parse with Readability

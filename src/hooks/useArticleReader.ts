@@ -18,6 +18,7 @@
  * @see src/utils/article-loader.ts for the fetch/parse/paywall logic
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useThrottledValue } from "./useThrottledValue";
 import { environment, AI, Clipboard, Keyboard, getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { useAI } from "@raycast/utils";
 import { ArticleState } from "../types/article";
@@ -51,6 +52,8 @@ import { loadArticleFromUrl, loadArticleViaPaywallHopper, LoadArticleResult } fr
 
 const MINIMUM_ARTICLE_LENGTH = 100;
 
+/** How often a streaming summary refreshes the view. See `currentSummary` below. */
+const SUMMARY_REFRESH_MS = 500;
 export interface UseArticleReaderOptions {
   resolveUrl: () => Promise<{ url: string; source: string } | null>;
   onNoUrl?: () => void;
@@ -236,6 +239,10 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
     },
   });
 
+  // Read by handleRegenerate, so that callback doesn't change on every streamed token.
+  const summaryDataRef = useRef(summaryData);
+  summaryDataRef.current = summaryData;
+
   // When streaming completes, log final stats and cache the complete summary
   useEffect(() => {
     if (
@@ -322,7 +329,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
       regenerateFromRef.current ??= {
         model: modelOverride,
         style: summaryStyle,
-        summary: cachedSummary || summaryData,
+        summary: cachedSummary || summaryDataRef.current,
       };
       setModelOverride(model);
       setCachedSummaryState(null);
@@ -334,7 +341,6 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
       summaryStyle,
       summaryPrompt,
       cachedSummary,
-      summaryData,
       cacheModel,
       modelOverride,
       preferences.summaryOutputLanguage,
@@ -629,7 +635,9 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
     });
   }
 
-  const currentSummary = cachedSummary || summaryData;
+  // Every view update re-sends the whole article to Raycast. On a long article, an update per
+  // streamed token exhausts the 100 MB extension heap, so a streaming summary shows twice a second.
+  const currentSummary = useThrottledValue(cachedSummary || summaryData, isSummarizing ? SUMMARY_REFRESH_MS : 0);
 
   return {
     // State

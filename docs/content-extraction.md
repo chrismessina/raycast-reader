@@ -12,6 +12,8 @@ Reader uses a multi-stage pipeline to extract clean article content from web pag
 4. **Readability Parsing** — Extract article content using Mozilla Readability
 5. **Markdown Conversion** — Convert HTML to Markdown with additional filtering
 
+**Markdown sources skip all five stages** (`src/utils/markdown-source.ts`, called from `loadArticleFromUrl`). A response served as `text/markdown` (or plain text at a `.md` path) is shown as is. A page with `<link rel="alternate" type="text/markdown" href="…">` gets that file fetched instead; only the page's `<head>` is parsed, for its title, author, site name, and image. If the alternate is missing, isn't Markdown, or is under 200 characters, the page goes through the normal pipeline. Either way, relative links resolve against the Markdown's URL, image alt text is dropped, and bracketed asides become parentheses, as for HTML articles. Markdown articles skip paywall detection.
+
 ---
 
 ## Sources of Inspiration
