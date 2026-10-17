@@ -23,6 +23,7 @@ export function ArticleReaderView(props: ArticleReaderViewProps) {
     blockedUrl,
     hasBrowserExtension,
     isWaitingForBrowser,
+    browserFetchError,
     foundTab,
     notReadableUrl,
     emptyContentUrl,
@@ -87,12 +88,14 @@ export function ArticleReaderView(props: ArticleReaderViewProps) {
     return <EmptyContentView url={emptyContentUrl} />;
   }
 
-  if (blockedUrl && error) {
+  // Stays up while a fetch from the browser runs, which clears `error` until it settles.
+  if (blockedUrl && (error || isWaitingForBrowser)) {
     return (
       <BlockedPageView
         blockedUrl={blockedUrl}
         hasBrowserExtension={hasBrowserExtension}
         isWaitingForBrowser={isWaitingForBrowser}
+        browserFetchError={browserFetchError}
         foundTab={foundTab}
         onFetchFromBrowser={handleFetchFromBrowser}
       />

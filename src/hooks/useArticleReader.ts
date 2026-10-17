@@ -69,6 +69,8 @@ export interface ArticleReaderState {
   blockedUrl: string | null;
   hasBrowserExtension: boolean;
   isWaitingForBrowser: boolean;
+  /** Why the last fetch from the browser failed, shown on the blocked page. */
+  browserFetchError: string | null;
   foundTab: BrowserTab | null;
   notReadableUrl: string | null;
   emptyContentUrl: string | null;
@@ -112,6 +114,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
   const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
   const [hasBrowserExtension, setHasBrowserExtension] = useState(false);
   const [isWaitingForBrowser, setIsWaitingForBrowser] = useState(false);
+  const [browserFetchError, setBrowserFetchError] = useState<string | null>(null);
   const [foundTab, setFoundTab] = useState<BrowserTab | null>(null);
 
   // Not-readable page state
@@ -413,6 +416,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
         }
       } else if (result.status === "blocked") {
         setBlockedUrl(result.url);
+        setBrowserFetchError(null);
         setHasBrowserExtension(result.hasBrowserExtension);
         setFoundTab(result.foundTab);
         setError(result.error);
@@ -488,6 +492,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
 
     setIsWaitingForBrowser(true);
     setError(null);
+    setBrowserFetchError(null);
 
     const result = await getContentFromActiveTab(blockedUrl);
 
@@ -496,6 +501,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
       setBlockedUrl(null);
     } else {
       setError(result.error);
+      setBrowserFetchError(result.error);
     }
 
     setIsWaitingForBrowser(false);
@@ -648,6 +654,7 @@ export function useArticleReader(options: UseArticleReaderOptions): ArticleReade
     blockedUrl,
     hasBrowserExtension,
     isWaitingForBrowser,
+    browserFetchError,
     foundTab,
     notReadableUrl,
     emptyContentUrl: hasMinimalContent ? article?.url || emptyContentUrl : emptyContentUrl,

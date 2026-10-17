@@ -130,7 +130,9 @@ function validateBypassCandidate(url: string, minTextLength: number): (html: str
     }
     // Short candidates: overlay DOM + text signals. Long: text signals only (a full article can
     // carry a leftover overlay; a gating phrase in the body cannot). See the doc comment above.
-    const isShort = textContent.length < FULL_ARTICLE_TEXT_FLOOR;
+    // An article recovered from the page's data payload is weighed on its text too: the page's
+    // overlay describes the teaser the payload got past.
+    const isShort = textContent.length < FULL_ARTICLE_TEXT_FLOOR && !parsed.article.recoveredFromPayload;
     const evidence = isShort ? { textContent, html, description } : { textContent, description };
     if (detectPaywall(evidence, url).isPaywalled) {
       paywallLog.log("candidate:rejected", {
@@ -415,11 +417,13 @@ export async function loadArticleFromUrl(
   if (options.enablePaywallHopper) {
     // Weigh the HTML and the page's own description too, not just the extracted text:
     // the barrier markup and a body far shorter than its og:description are the signals
-    // that catch paywalls on sites nobody thought to enumerate.
+    // that catch paywalls on sites nobody thought to enumerate. When the article came from the
+    // page's data payload, the barrier markup describes the teaser this parse got past, so only
+    // the recovered text is weighed.
     const paywallCheck = detectPaywall(
       {
         textContent: parseResult.article.textContent,
-        html: fetchResult.data.html,
+        html: parseResult.article.recoveredFromPayload ? undefined : fetchResult.data.html,
         description: parseResult.article.description,
       },
       url,

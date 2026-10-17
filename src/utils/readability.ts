@@ -5,6 +5,7 @@ import { preCleanHtml } from "./html-cleaner";
 import { MetadataExtractor } from "./metadata-extractor";
 import { getExtractor } from "../extractors";
 import { getSiteConfig } from "../config/site-config";
+import { findNuxtArticles, PayloadArticle } from "./nuxt-payload";
 
 type LinkedomDocument = ReturnType<typeof parseHTML>["document"];
 
@@ -22,6 +23,11 @@ export interface ArticleContent {
   image: string | null;
   description: string | null;
   favicon: string | null;
+  /**
+   * The article came from the page's data payload, which held well over what the page shows.
+   * The page's paywall markup then describes the teaser, not this text.
+   */
+  recoveredFromPayload?: boolean;
 }
 
 export interface ReadabilityError {
@@ -69,6 +75,12 @@ const FALLBACK_SELECTORS = [
   "main",
   '[role="main"]',
 ];
+
+/**
+ * The page's data payload replaces Readability's result when it holds this many times the text:
+ * the visible page is then a teaser, not the article.
+ */
+const PAYLOAD_PREFERENCE_RATIO = 1.5;
 
 /** Minimum text for a generic container to be believable as the article. */
 const MIN_FALLBACK_TEXT_LENGTH = 200;
@@ -187,6 +199,42 @@ export function parseArticle(
       }
     }
 
+    // Some pages show a teaser but ship the whole article in their Nuxt data payload. Read it,
+    // and the article text the page shows, before cleaning, which can remove both.
+    const nuxt = findNuxtArticles(document, url);
+    const pageText = nuxt
+      ? Array.from(document.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, blockquote"))
+          // Hidden text isn't what the page shows, and can't tie a payload list to it. Not
+          // aria-hidden: a modal (the subscribe wall itself) marks the whole page behind it so.
+          .filter((el) => !el.closest("[hidden], template"))
+          .map((el) => el.textContent ?? "")
+          .join("\n")
+      : "";
+    const fromPayload = (payload: PayloadArticle, reason: string) => {
+      const recoveredFromPayload = payload.textContent.length > payload.shownLength * PAYLOAD_PREFERENCE_RATIO;
+      parseLog.log("parse:nuxt-payload", { url, reason, textLength: payload.textContent.length, recoveredFromPayload });
+      return {
+        success: true as const,
+        article: {
+          title: metadata.title || "Untitled",
+          content: payload.content,
+          textContent: payload.textContent,
+          excerpt: metadata.description || "",
+          byline: metadata.author || null,
+          siteName: metadata.siteName || null,
+          length: payload.textContent.length,
+          author: metadata.author || null,
+          published: metadata.published || null,
+          image: metadata.image || null,
+          description: metadata.description || null,
+          favicon: metadata.favicon || null,
+          recoveredFromPayload,
+        },
+      };
+    };
+    // When Readability can't read the page, the payload article must still share a paragraph with it.
+    const payloadForPage = () => nuxt?.pick(pageText) ?? null;
+
     // Strip sidebars, ads, comments, subscription boxes, and other non-article chrome.
     // Mutates the document in place; only Readability sees the result, and site
     // extractors have already returned above without needing it.
@@ -198,6 +246,8 @@ export function parseArticle(
       parseLog.log("parse:precheck", { url, isReadable });
 
       if (!isReadable) {
+        const payload = payloadForPage();
+        if (payload) return fromPayload(payload, "not-readable");
         parseLog.warn("parse:skip", { url, reason: "content not readable" });
         return {
           success: false,
@@ -222,6 +272,8 @@ export function parseArticle(
     if (!article || !article.content || article.content.trim().length === 0) {
       const reason = !article ? "Readability returned null" : "empty content";
       parseLog.warn("parse:readability-failed", { url, reason });
+      const payload = payloadForPage();
+      if (payload) return fromPayload(payload, "readability-failed");
 
       // Fall back to whatever we snapshotted before Readability emptied the document.
       if (fallbackContent) {
@@ -261,6 +313,12 @@ export function parseArticle(
     }
 
     const textContent = article.textContent || "";
+    // The payload replaces Readability's article only when it continues it: it shares a
+    // paragraph with what Readability found, and holds well over that much text.
+    const payload = nuxt?.pick(textContent) ?? null;
+    if (payload && payload.textContent.length > textContent.trim().length * PAYLOAD_PREFERENCE_RATIO) {
+      return fromPayload(payload, "longer-than-page");
+    }
 
     parseLog.log("parse:success", {
       url,

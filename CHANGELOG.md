@@ -6,9 +6,11 @@
 
 - Reader opens Markdown files. A link to a `.md` file used to fail with "Cannot destructure property 'firstElementChild'"; it now shows the article.
 - When a page offers a Markdown version of itself, Reader reads that version instead of the page's HTML, keeping the page's title, author, and image. If the Markdown version is missing or broken, Reader falls back to the page.
+- Reader reads the whole article on sites that show a teaser but ship the full text in the page's data, such as the Business Journals (bizjournals.com) sites.
 
 ### Fixed
 
+- When fetching a page from your browser fails, the "Page Found in Browser" and "Page Blocked" screens now say why, instead of staying unchanged.
 - Summarizing a long article no longer runs out of memory and crashes Reader. The summary now refreshes on screen twice a second while it streams, instead of on every word.
 
 ### Changed

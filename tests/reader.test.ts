@@ -1063,6 +1063,365 @@ export declare namespace AI {
   });
 });
 
+describe("Nuxt data payload", () => {
+  const TEASER_URL = "https://www.example.test/news/2026/harbor-labs.html";
+  const teaser = loadFixture("nuxt-payload-teaser.html");
+  const payloadScript = teaser.match(/<script[^>]*id="__NUXT_DATA__">[\s\S]*?<\/script>/)![0];
+  const teaserBody = teaser.match(/<article[\s\S]*?<\/article>/)![0];
+  const page = (body: string, script = payloadScript) =>
+    `<!DOCTYPE html><html><head><title>Example</title></head><body>${body}${script}</body></html>`;
+  // Escaped as Nuxt does, so markup inside the payload can't close its <script> early.
+  const nuxt = (payload: unknown) =>
+    `<script type="application/json" id="__NUXT_DATA__">${JSON.stringify(payload).replace(/</g, "\\u003c")}</script>`;
+  // The teaser's article paragraphs, as the payload holds them.
+  const articleParagraphs = (JSON.parse(payloadScript.replace(/^<script[^>]*>|<\/script>$/g, "")) as unknown[]).filter(
+    (s): s is string => typeof s === "string" && s.endsWith("&nbsp;"),
+  );
+  const fullArticle = `<article><h1>Example</h1>${articleParagraphs.map((p) => `<p>${p}</p>`).join("")}</article>`;
+
+  /** A devalue payload holding block lists; each list is `[type, html][]`. */
+  function payloadWith(...lists: [string, string][][]) {
+    const payload: unknown[] = [null];
+    const add = (value: unknown) => payload.push(value) - 1;
+    const listIndexes = lists.map((list) => add(list.map(([type, html]) => add({ type: add(type), html: add(html) }))));
+    payload[0] = Object.fromEntries(listIndexes.map((index, i) => [`list${i}`, index]));
+    return payload;
+  }
+  const paragraphs = (texts: string[]): [string, string][] => texts.map((text) => ["paragraph", text]);
+
+  it("reads the whole article from the payload when the page shows a teaser", () => {
+    const result = parseArticle(teaser, TEASER_URL);
+    assert.ok(result.success, "the teaser page should parse from its payload");
+    const { content, textContent, title, recoveredFromPayload } = result.article;
+    assert.match(textContent, /SENTINEL-LAST-PARAGRAPH/, "the last payload paragraph is missing");
+    assert.doesNotMatch(textContent, /RESERVED FOR SUBSCRIBERS/, "the subscribe wall leaked in");
+    assert.match(content, /<li>The deal closes next quarter\.<\/li>/, "the highlights list is missing");
+    assert.match(content, /<h2>What the buyer gets<\/h2>/, "a subhead block should become a heading");
+    assert.match(content, /href="https:\/\/www\.example\.test\/news\/example-corp"/, "relative links must resolve");
+    assert.equal(title, "Example Corp. buys Harbor Labs");
+    assert.equal(recoveredFromPayload, true, "the payload held far more than the teaser");
+  });
+
+  it("keeps Readability's result when the page already shows the whole article", () => {
+    const html = page(fullArticle.replace("</article>", '<img src="https://example.test/visible-only.jpg"></article>'));
+    const result = parseArticle(html, TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.content, /visible-only\.jpg/, "the visible article should win over an equal payload");
+    assert.ok(!result.article.recoveredFromPayload);
+  });
+
+  it("doesn't replace a complete article with a longer list from the payload", () => {
+    const comments = paragraphs(
+      Array.from(
+        { length: 30 },
+        (_, i) => `COMMENT-SENTINEL ${i}: I have opinions about this acquisition and here they are at length.`,
+      ),
+    );
+    const article = paragraphs(articleParagraphs);
+    for (const payload of [payloadWith(article, comments), payloadWith(comments)]) {
+      const result = parseArticle(page(fullArticle, nuxt(payload)), TEASER_URL);
+      assert.ok(result.success);
+      assert.doesNotMatch(result.article.textContent, /COMMENT-SENTINEL/, "comments replaced the article");
+      assert.match(result.article.textContent, /SENTINEL-LAST-PARAGRAPH/);
+    }
+  });
+
+  it("doesn't take a payload list the page doesn't show any of", () => {
+    const cards = paragraphs(
+      Array.from(
+        { length: 10 },
+        (_, i) => `CARD-SENTINEL ${i}: a story about something else entirely, told at some length.`,
+      ),
+    );
+    const result = parseArticle(page("<nav><a href='/'>Home</a></nav>", nuxt(payloadWith(cards))), TEASER_URL);
+    assert.equal(result.success, false, "a list the page never shows is not this page's article");
+  });
+
+  it("doesn't take a list of head tags for the article", () => {
+    const description = "A meta description long enough to outweigh a short article in a naive scorer. ".repeat(3);
+    const payload: unknown[] = [{ head: 1 }, [2, 5, 8, 11]];
+    for (let i = 0; i < 4; i++)
+      payload.push({ name: payload.length + 1, content: payload.length + 2 }, "description", description);
+    const result = parseArticle(
+      page(`<nav><a href='/'>Home</a></nav><p>${description}</p>`, nuxt(payload)),
+      TEASER_URL,
+    );
+    assert.equal(result.success, false, "meta tags are not an article");
+  });
+
+  it("passes over a list that is mostly scripts and embeds", () => {
+    const embeds: [string, string][] = Array.from({ length: 10 }, (_, i) => [
+      "embed",
+      `<script>window.track${i}("${"x".repeat(400)}")</script>`,
+    ]);
+    // The teaser's opening paragraph is in both lists, so both are tied to the page.
+    const payload = payloadWith(paragraphs(articleParagraphs), [
+      ...paragraphs(articleParagraphs.slice(0, 1)),
+      ...embeds,
+    ]);
+    const result = parseArticle(page(teaserBody, nuxt(payload)), TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.textContent, /SENTINEL-LAST-PARAGRAPH/, "an embed list that comes out empty won");
+  });
+
+  it("keeps image blocks and resolves their URLs", () => {
+    const list: [string, string][] = [
+      ...paragraphs(articleParagraphs.slice(0, 3)),
+      ["image", '<figure><img src="../media/chart.png" alt="A chart"></figure>'],
+      ...paragraphs(articleParagraphs.slice(3)),
+    ];
+    const result = parseArticle(page(teaserBody, nuxt(payloadWith(list))), TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.content, /src="https:\/\/www\.example\.test\/news\/media\/chart\.png"/);
+  });
+
+  it("bounds a payload that points at one long block many times", () => {
+    const long = "A paragraph long enough to matter, repeated by reference rather than by copy. ".repeat(250);
+    // One block, listed 3,000 times: a 20 KB payload that expands to 60 MB if each copy is built.
+    const payload: unknown[] = [{ list: 1 }, [], { type: 3, html: 4 }, "paragraph", long];
+    (payload[1] as number[]).push(...Array.from({ length: 3000 }, () => 2));
+    globalThis.gc?.();
+    const before = process.memoryUsage().heapUsed;
+    // The page shows the block, so only the bound stands between it and a 60 MB article.
+    parseArticle(page(`<article><p>${long}</p></article>`, nuxt(payload)), TEASER_URL);
+    const grewMB = (process.memoryUsage().heapUsed - before) / 1e6;
+    assert.ok(grewMB < 40, `heap grew ${Math.round(grewMB)} MB`);
+  });
+
+  it("walks a large, self-referencing payload in linear time", () => {
+    // Under the 5 MB cap, so the walker runs; the article sits at the far end of the chain.
+    const article = payloadWith(paragraphs(articleParagraphs));
+    const offset = 60_000;
+    const payload: unknown[] = [];
+    // The chain's last link points at the article's list, reached only by walking all of it.
+    const listIndex = (article[0] as Record<string, number>).list0 + offset - 1;
+    for (let i = 0; i < offset; i++) {
+      payload.push({ next: i + 1 < offset ? i + 1 : listIndex, back: Math.max(0, i - 1), self: i });
+    }
+    for (const value of article.slice(1)) {
+      payload.push(
+        Array.isArray(value)
+          ? value.map((i) => (i as number) + offset - 1)
+          : isRecordLike(value)
+            ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, typeof v === "number" ? v + offset - 1 : v]))
+            : value,
+      );
+    }
+    const json = JSON.stringify(payload);
+    assert.ok(json.length < 5 * 1024 * 1024, `payload is ${json.length} characters, over the cap`);
+    const start = performance.now();
+    const result = parseArticle(page(teaserBody, nuxt(payload)), TEASER_URL);
+    assert.ok(performance.now() - start < 2000, `took ${Math.round(performance.now() - start)} ms`);
+    assert.ok(
+      result.success && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent),
+      "the walk never reached the article",
+    );
+  });
+
+  it("doesn't run Paywall Hopper on an article recovered from the payload", async () => {
+    let requests = 0;
+    const server = createServer((_req, res) => {
+      requests++;
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(teaser);
+    });
+    await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+    try {
+      const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/news/harbor-labs.html`;
+      const result = await loadArticleFromUrl(url, "test", {
+        skipPreCheck: false,
+        enablePaywallHopper: true,
+        showArticleImage: true,
+      });
+      assert.equal(result.status, "success");
+      assert.equal(requests, 1, "Paywall Hopper refetched a page whose payload already held the article");
+    } finally {
+      server.close();
+    }
+  });
+
+  const heapGrowthMB = (run: () => void) => {
+    globalThis.gc?.();
+    const before = process.memoryUsage().heapUsed;
+    run();
+    return (process.memoryUsage().heapUsed - before) / 1e6;
+  };
+  const opening = articleParagraphs[0];
+  const openingText = "Harbor Labs, a maker of fictional sensor software, is being acquired by Example Corp.";
+
+  it("bounds many distinct blocks that share one long string", () => {
+    const long = `${openingText} ${"Shared text that many blocks point at, at length. ".repeat(450)}`;
+    const payload: unknown[] = [{ list: 1 }, [], long];
+    for (let i = 0; i < 6000; i++) (payload[1] as number[]).push(payload.push({ html: 2 }) - 1);
+    const grew = heapGrowthMB(() =>
+      parseArticle(page(`<article><p>${openingText}</p></article>`, nuxt(payload)), TEASER_URL),
+    );
+    assert.ok(grew < 40, `heap grew ${Math.round(grew)} MB`);
+  });
+
+  it("bounds a candidate's tag count, not just its length", () => {
+    const list: [string, string][] = [...paragraphs(articleParagraphs), ["paragraph", "<b>x</b>".repeat(120_000)]];
+    const grew = heapGrowthMB(() => parseArticle(page(teaserBody, nuxt(payloadWith(list))), TEASER_URL));
+    assert.ok(grew < 40, `heap grew ${Math.round(grew)} MB`);
+  });
+
+  it("scores unclosed script tags in linear time", () => {
+    const list = paragraphs([opening, "<script>".repeat(80_000), "x" + "<script>".repeat(80_000)]);
+    const start = performance.now();
+    parseArticle(page(teaserBody, nuxt(payloadWith(list))), TEASER_URL);
+    assert.ok(performance.now() - start < 1500, `took ${Math.round(performance.now() - start)} ms`);
+  });
+
+  it("matches a teaser that cuts its paragraph off early", () => {
+    const cut = `<article><h1>Example</h1><p>${openingText.slice(0, 60)}…</p><p>Subscribe to read more.</p></article>`;
+    const result = parseArticle(page(cut), TEASER_URL);
+    assert.ok(
+      result.success && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent),
+      "the cut teaser wasn't matched",
+    );
+  });
+
+  it("decodes entities before matching the page", () => {
+    const encoded = articleParagraphs.map((p, i) =>
+      i === 0 ? p.replace("Harbor Labs,", "Harbor &amp; Sons &ldquo;Labs&rdquo;,") : p,
+    );
+    const shown = `<article><p>${encoded[0].replace(/&nbsp;$/, "")}</p></article>`;
+    const result = parseArticle(page(shown, nuxt(payloadWith(paragraphs(encoded)))), TEASER_URL);
+    assert.ok(result.success && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent), "entities broke the match");
+    assert.match(result.article.textContent, /Harbor & Sons “Labs”/);
+  });
+
+  it("finds the article among many longer unrelated lists", () => {
+    const unrelated = Array.from({ length: 6 }, (_, n) =>
+      paragraphs(
+        Array.from(
+          { length: 12 },
+          (_, i) => `Unrelated list ${n}, item ${i}: a story card about something else entirely.`,
+        ),
+      ),
+    );
+    const payload = payloadWith(...unrelated, paragraphs(articleParagraphs));
+    const result = parseArticle(page(teaserBody, nuxt(payload)), TEASER_URL);
+    assert.ok(
+      result.success && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent),
+      "longer lists crowded out the article",
+    );
+  });
+
+  it("doesn't let a comment quoting the article tie a comment list to the page", () => {
+    const comments = paragraphs(
+      Array.from({ length: 30 }, (_, i) =>
+        i === 5
+          ? `${openingText} — quoting the article, and I disagree with every word of it.`
+          : `Comment ${i}: I have opinions about this acquisition, at length.`,
+      ),
+    );
+    const result = parseArticle(page(fullArticle, nuxt(payloadWith(comments))), TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.textContent, /SENTINEL-LAST-PARAGRAPH/, "comments replaced the article");
+  });
+
+  it("doesn't count hidden text as what the page shows", () => {
+    const card = (i: number) => `Hidden card ${i}: a recommended story about something else, at some length.`;
+    const cards = paragraphs(Array.from({ length: 10 }, (_, i) => card(i)));
+    const html = page(`<nav><a href="/">Home</a></nav><div hidden><p>${card(0)}</p></div>`, nuxt(payloadWith(cards)));
+    assert.equal(parseArticle(html, TEASER_URL).success, false, "a hidden paragraph tied a payload list to the page");
+  });
+
+  it("measures how much of a long block the teaser shows", () => {
+    const long = `${openingText} ${"The rest of a long opening paragraph that the teaser never shows. ".repeat(30)}`;
+    const list = paragraphs([
+      long,
+      "A short second paragraph of the article.",
+      "A short third paragraph of the article.",
+    ]);
+    const result = parseArticle(page(`<article><p>${openingText}…</p></article>`, nuxt(payloadWith(list))), TEASER_URL);
+    assert.ok(result.success);
+    assert.equal(
+      result.article.recoveredFromPayload,
+      true,
+      "the teaser shows ~85 characters of a 2,000-character block",
+    );
+  });
+
+  it("resolves lazy-loaded payload images", () => {
+    const list: [string, string][] = [
+      ...paragraphs(articleParagraphs.slice(0, 3)),
+      ["image", '<figure><img src="data:image/gif;base64,R0lGOD" data-src="../media/lazy.png"></figure>'],
+      ...paragraphs(articleParagraphs.slice(3)),
+    ];
+    const result = parseArticle(page(teaserBody, nuxt(payloadWith(list))), TEASER_URL);
+    assert.ok(result.success);
+    assert.match(result.article.content, /src="https:\/\/www\.example\.test\/news\/media\/lazy\.png"/);
+  });
+
+  const realArticle = (text: string) =>
+    `<!doctype html><html><head><title>Real</title></head><body><article><h1>Real</h1><p>${text.repeat(60)}</p></article></body></html>`;
+
+  /** Serves `first` to the first request and `rest` to every later one. */
+  async function withServer(first: string, rest: string, run: (url: string) => Promise<void>) {
+    let hits = 0;
+    const server = createServer((_req, res) => {
+      hits += 1;
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end(hits === 1 ? first : rest);
+    });
+    await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+    try {
+      await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}/news/harbor-labs.html`);
+    } finally {
+      await new Promise((done) => server.close(done));
+    }
+  }
+
+  it("still checks a recovered article's own text for a paywall", async () => {
+    const gated = teaser.replace(
+      /SENTINEL-LAST-PARAGRAPH:[^"]*/,
+      "Subscribe to continue reading the rest of this article.",
+    );
+    await withServer(
+      gated,
+      realArticle("This is the genuine article body with plenty of real reporting. "),
+      async (url) => {
+        const options = { skipPreCheck: false, enablePaywallHopper: true, showArticleImage: true };
+        const result = await loadArticleFromUrl(url, "test", options);
+        assert.ok(
+          result.status === "success" && /genuine article body/.test(result.article.textContent),
+          "the gated payload was shown",
+        );
+      },
+    );
+  });
+
+  it("lets Paywall Hopper accept an article recovered from a payload", async () => {
+    await withServer(teaser, realArticle("A different page the second method would return. "), async (url) => {
+      const result = await loadArticleViaPaywallHopper(url, { showArticleImage: false });
+      assert.ok(
+        result.status === "success" && /SENTINEL-LAST-PARAGRAPH/.test(result.article.textContent),
+        "the recovered teaser was rejected",
+      );
+    });
+  });
+
+  it(
+    "reads the real bizjournals capture",
+    { skip: !hasPrivateFixture("bizjournals-nuxt.html") && "no private corpus" },
+    () => {
+      const url = "https://www.bizjournals.com/portland/news/2026/10/13/c1-workday-acquisition.html?page=all";
+      const result = parseArticle(loadPrivateFixture("bizjournals-nuxt.html"), url);
+      assert.ok(result.success, "the captured page should parse from its payload");
+      assert.match(result.article.textContent, /Paul Querna/, "a paragraph past the teaser is missing");
+      assert.doesNotMatch(result.article.textContent, /RESERVED FOR SUBSCRIBERS/);
+      assert.ok(result.article.textContent.length > 2500, `only ${result.article.textContent.length} characters`);
+      assert.equal(result.article.recoveredFromPayload, true);
+    },
+  );
+});
+
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 describe("markdown articles", () => {
   const essay = loadFixture("markdown-essay.md");
   const page = loadFixture("markdown-alternate.html");

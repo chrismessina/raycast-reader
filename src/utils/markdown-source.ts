@@ -45,7 +45,7 @@ export function pageHead(html: string): string {
  * Lowercases ASCII only. `toLowerCase` can change a string's length ("İ" becomes two UTF-16
  * units), which would misalign indexes found in the copy with the original.
  */
-function asciiLower(text: string): string {
+export function asciiLower(text: string): string {
   return text.replace(/[A-Z]+/g, (run) => run.toLowerCase());
 }
 
@@ -79,7 +79,8 @@ const ENTITIES: Record<string, string> = {
   cent: "¢",
 };
 
-function decodeEntities(text: string): string {
+/** Decodes numeric entities and the named ones in `ENTITIES`. */
+export function decodeEntities(text: string): string {
   return text.replace(/&(#x[0-9a-f]{1,6}|#[0-9]{1,7}|[a-z]{2,6});/gi, (entity, code: string) => {
     const lower = code.toLowerCase();
     if (lower[0] !== "#") return ENTITIES[lower] ?? entity;
