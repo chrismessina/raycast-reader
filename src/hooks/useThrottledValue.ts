@@ -14,10 +14,10 @@ export function useThrottledValue<T>(value: T, intervalMs: number): T {
   useEffect(() => {
     if (intervalMs <= 0) return;
     const show = () => {
-      lastUpdate.current = Date.now();
+      lastUpdate.current = performance.now();
       setShown(value);
     };
-    const wait = lastUpdate.current + intervalMs - Date.now();
+    const wait = lastUpdate.current + intervalMs - performance.now();
     if (wait <= 0) {
       show();
       return;

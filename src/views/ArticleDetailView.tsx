@@ -1,10 +1,10 @@
-import { Detail } from "@raycast/api";
 import { memo } from "react";
+import { Detail } from "@raycast/api";
+import { ArticleActions } from "../actions/ArticleActions";
+import { DEFAULT_SUMMARY_MODEL, getSummaryModelTitle, SummaryModelKey } from "../config/ai";
 import { ArticleState } from "../types/article";
 import { SummaryStyle } from "../types/summary";
 import { formatSummaryBlock } from "../utils/summarizer";
-import { DEFAULT_SUMMARY_MODEL, SummaryModelKey, getSummaryModelTitle } from "../config/ai";
-import { ArticleActions } from "../actions/ArticleActions";
 
 interface ArticleDetailViewProps {
   article: ArticleState;

@@ -11,45 +11,44 @@
  * three shipped, for months, because nothing ever asserted otherwise.
  */
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-
-import { parseArticle } from "../src/utils/readability";
-import { detectPaywall } from "../src/utils/paywall-detector";
-import { preCleanHtml } from "../src/utils/html-cleaner";
-import { regenerateNeedsRevalidate } from "../src/utils/summarizer";
-import { getAIConfigForStyle, SUMMARY_MODELS, DEFAULT_SUMMARY_MODEL } from "../src/config/ai";
-import {
-  parseModelCatalog,
-  planModelUpdates,
-  applyModelUpdates,
-  modelTitle,
-  referencedModels,
-} from "../scripts/summary-models.mjs";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { AI, stubPreferences } from "./raycast-api-stub";
-import {
-  loadFixture,
-  loadPrivateFixture,
-  hasPrivateFixture,
-  PAYWALLED_FIXTURES,
-  OPEN_FIXTURES,
-  PRIVATE_PAYWALLED_FIXTURES,
-  PRIVATE_OPEN_FIXTURES,
-} from "./fixtures";
-import { parseHTML } from "linkedom";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { tryBypassPaywall } from "../src/utils/paywall-hopper";
-import { loadArticleViaPaywallHopper, loadArticleFromUrl } from "../src/utils/article-loader";
-import { findMarkdownAlternate, isMarkdownResponse, parseMarkdownArticle } from "../src/utils/markdown-source";
+import { join } from "node:path";
+import { describe, it } from "node:test";
+import { parseHTML } from "linkedom";
 import {
-  fetchHtmlAsGooglebot,
-  fetchHtmlAsBingbot,
-  GOOGLEBOT_USER_AGENT,
+  applyModelUpdates,
+  modelTitle,
+  parseModelCatalog,
+  planModelUpdates,
+  referencedModels,
+} from "../scripts/summary-models.mjs";
+import { DEFAULT_SUMMARY_MODEL, getAIConfigForStyle, SUMMARY_MODELS } from "../src/config/ai";
+import { loadArticleFromUrl, loadArticleViaPaywallHopper } from "../src/utils/article-loader";
+import {
   BINGBOT_USER_AGENT,
+  fetchHtmlAsBingbot,
+  fetchHtmlAsGooglebot,
+  GOOGLEBOT_USER_AGENT,
 } from "../src/utils/fetcher";
+import { preCleanHtml } from "../src/utils/html-cleaner";
+import { findMarkdownAlternate, isMarkdownResponse, parseMarkdownArticle } from "../src/utils/markdown-source";
+import { detectPaywall } from "../src/utils/paywall-detector";
+import { tryBypassPaywall } from "../src/utils/paywall-hopper";
+import { parseArticle } from "../src/utils/readability";
+import { regenerateNeedsRevalidate } from "../src/utils/summarizer";
+import {
+  hasPrivateFixture,
+  loadFixture,
+  loadPrivateFixture,
+  OPEN_FIXTURES,
+  PAYWALLED_FIXTURES,
+  PRIVATE_OPEN_FIXTURES,
+  PRIVATE_PAYWALLED_FIXTURES,
+} from "./fixtures";
+import { AI, stubPreferences } from "./raycast-api-stub";
 
 /** Asserts a page's paywall verdict, given a loader for its HTML. */
 function assertPaywall(html: string, url: string, site: string, expected: boolean) {

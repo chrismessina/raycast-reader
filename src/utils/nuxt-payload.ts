@@ -15,8 +15,8 @@
  */
 
 import { parseHTML } from "linkedom";
-import { asciiLower, decodeEntities } from "./markdown-source";
 import { resolveLazyImages } from "./html-cleaner";
+import { asciiLower, decodeEntities } from "./markdown-source";
 
 type LinkedomDocument = ReturnType<typeof parseHTML>["document"];
 

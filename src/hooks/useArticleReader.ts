@@ -17,38 +17,38 @@
  *
  * @see src/utils/article-loader.ts for the fetch/parse/paywall logic
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useThrottledValue } from "./useThrottledValue";
-import { environment, AI, Clipboard, Keyboard, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AI, Clipboard, environment, getPreferenceValues, Keyboard, showToast, Toast } from "@raycast/api";
 import { useAI } from "@raycast/utils";
-import { ArticleState } from "../types/article";
-import { BrowserTab } from "../types/browser";
-import { SummaryStyle } from "../types/summary";
 import {
+  DEFAULT_SUMMARY_MODEL,
   getAIConfigForStyle,
   getSummaryModelChoice,
   getSummaryModelTitle,
-  DEFAULT_SUMMARY_MODEL,
   SummaryModelKey,
 } from "../config/ai";
-import { rewriteArticleTitle } from "../config/prompts";
 import { getArchiveSourceLabel } from "../config/labels";
-import { getCachedSummary, setCachedSummary, getLastSummaryStyle } from "../utils/summaryCache";
+import { rewriteArticleTitle } from "../config/prompts";
+import { ArticleState } from "../types/article";
+import { BrowserTab } from "../types/browser";
+import { SummaryStyle } from "../types/summary";
+import { loadArticleFromUrl, LoadArticleResult, loadArticleViaPaywallHopper } from "../utils/article-loader";
 import {
+  getContentFromActiveTab,
   isBrowserExtensionAvailable,
   reimportFromBrowserTab,
-  getContentFromActiveTab,
 } from "../utils/browser-extension";
-import { urlLog, aiLog } from "../utils/logger";
-import { isValidUrl } from "../utils/url-resolver";
+import { aiLog, urlLog } from "../utils/logger";
 import {
-  getStyleLabel,
   buildSummaryPrompt,
-  logSummarySuccess,
+  getStyleLabel,
   logSummaryError,
+  logSummarySuccess,
   regenerateNeedsRevalidate,
 } from "../utils/summarizer";
-import { loadArticleFromUrl, loadArticleViaPaywallHopper, LoadArticleResult } from "../utils/article-loader";
+import { getCachedSummary, getLastSummaryStyle, setCachedSummary } from "../utils/summaryCache";
+import { isValidUrl } from "../utils/url-resolver";
+import { useThrottledValue } from "./useThrottledValue";
 
 const MINIMUM_ARTICLE_LENGTH = 100;
 

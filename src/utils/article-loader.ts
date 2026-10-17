@@ -21,18 +21,18 @@
  * @see src/hooks/useArticleReader.ts for the React state management layer
  */
 
-import { urlLog, paywallLog } from "./logger";
+import { parseHTML } from "linkedom";
+import { ArticleState } from "../types/article";
+import { BrowserTab } from "../types/browser";
+import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
 import { fetchHtml } from "./fetcher";
-import { parseArticle, ArticleContent } from "./readability";
-import { formatArticle, dedupeArticleImage } from "./markdown";
+import { paywallLog, urlLog } from "./logger";
+import { dedupeArticleImage, formatArticle } from "./markdown";
 import { findMarkdownAlternate, isMarkdownResponse, pageHead, parseMarkdownArticle } from "./markdown-source";
 import { MetadataExtractor } from "./metadata-extractor";
-import { parseHTML } from "linkedom";
-import { isBrowserExtensionAvailable, tryGetContentFromOpenTab } from "./browser-extension";
-import { tryBypassPaywall, createArchiveSource, PaywallHopperResult } from "./paywall-hopper";
 import { detectPaywall } from "./paywall-detector";
-import { BrowserTab } from "../types/browser";
-import { ArticleState } from "../types/article";
+import { createArchiveSource, PaywallHopperResult, tryBypassPaywall } from "./paywall-hopper";
+import { ArticleContent, parseArticle } from "./readability";
 
 export type LoadArticleResult =
   | { status: "success"; article: ArticleState }
