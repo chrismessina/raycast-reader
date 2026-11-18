@@ -78,10 +78,26 @@ function speakBlocks(tokens: Token[]): string[] {
         }
         break;
       }
-      // code, hr, html, space, def: nothing to say.
+      case "html":
+        out.push(...htmlText(token.text).split("\n"));
+        break;
+      // code, hr, space, def: nothing to say.
     }
   }
   return out.map((block) => block.replace(/[ \t]+/g, " ").trim()).filter(Boolean);
+}
+
+/**
+ * The prose in a raw HTML block, which Markdown articles can keep (`<div>Some prose</div>`): its
+ * text, one line per line of markup, without scripts, styles, comments, or tags (so no image alt text).
+ */
+function htmlText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, "")
+      .replace(/<!--[\s\S]*?-->/g, "")
+      .replace(/<[^>]*>/g, ""),
+  );
 }
 
 /**

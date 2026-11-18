@@ -2712,6 +2712,28 @@ describe("read aloud", () => {
     }
   });
 
+  it("reads the prose inside raw HTML blocks, but not their scripts, styles, comments, or images", () => {
+    const text = readAloudText(
+      "Markup",
+      [
+        "<div class=\"note\">",
+        "<p>Important <strong>prose</strong> &amp; more.</p>",
+        "<img src=\"https://example.com/a.png\" alt=\"a diagram\">",
+        "<script>track('not read aloud');</script>",
+        "<style>.note { color: red; }</style>",
+        "<!-- an editor's comment -->",
+        "<p>Second line.</p>",
+        "</div>",
+        "",
+        "Plain paragraph.",
+      ].join("\n"),
+    );
+    assert.match(text, /Important prose & more\./);
+    assert.match(text, /Second line\./);
+    assert.match(text, /^Plain paragraph\.$/m);
+    assert.doesNotMatch(text, /[<>]|track|color|editor|diagram|example\.com/);
+  });
+
   it("keeps a link whose text starts with a caret", () => {
     const text = readAloudText("Regex", "See [^ and $ anchors](https://example.com/anchors) for the rules.");
     assert.match(text, /^See \^ and \$ anchors for the rules\.$/m);
