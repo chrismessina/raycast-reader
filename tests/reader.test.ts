@@ -2734,6 +2734,41 @@ describe("read aloud", () => {
     assert.doesNotMatch(text, /[<>]|track|color|editor|diagram|example\.com/);
   });
 
+  it("parses raw HTML as HTML: quoted '>', bare '<', split or unclosed scripts, code, and URLs", () => {
+    const text = readAloudText(
+      "Markup",
+      [
+        '<div><img alt="a > diagram" src="https://example.com/p.png"><p>Real prose.</p></div>',
+        "",
+        "<div>The dose is < 5 mg and the response is > 90%.</div>",
+        "",
+        "<div>",
+        "<style>body { color: red; }",
+        "",
+        "</style>",
+        "<p>Visible prose.</p>",
+        "</div>",
+        "",
+        "<pre><code>const secret = 42;</code></pre>",
+        "",
+        "<div>Visit https://example.com/docs today.</div>",
+        "",
+        "<div><script>track(42)",
+      ].join("\n"),
+    );
+    assert.match(text, /^Real prose\.$/m);
+    assert.match(text, /The dose is < 5 mg and the response is > 90%\./);
+    assert.match(text, /^Visible prose\.$/m);
+    assert.match(text, /^Visit a link today\.$/m);
+    assert.doesNotMatch(text, /diagram|src=|color|secret|track|https?:/);
+  });
+
+  it("reads a long run of '<' in raw HTML in linear time", () => {
+    const started = performance.now();
+    readAloudText("Markup", "Prose.\n\n<div>\n" + "<".repeat(80_000));
+    assert.ok(performance.now() - started < 1000, "took over a second");
+  });
+
   it("keeps a link whose text starts with a caret", () => {
     const text = readAloudText("Regex", "See [^ and $ anchors](https://example.com/anchors) for the rules.");
     assert.match(text, /^See \^ and \$ anchors for the rules\.$/m);

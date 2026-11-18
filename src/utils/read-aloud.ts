@@ -1,4 +1,5 @@
 import { marked, type Token, type Tokens } from "marked";
+import TurndownService from "turndown";
 import { decodeEntities } from "./markdown-source";
 
 /** litomore's Say extension, launched through the raycast-cross-extension convention. */
@@ -54,7 +55,7 @@ function dropFootnoteDefinitions(markdown: string): string {
   return kept.join("\n");
 }
 
-function speakBlocks(tokens: Token[]): string[] {
+function speakBlocks(tokens: Token[], html = true): string[] {
   const out: string[] = [];
   for (const token of tokens) {
     switch (token.type) {
@@ -66,10 +67,10 @@ function speakBlocks(tokens: Token[]): string[] {
         out.push(token.tokens ? speakInline(token.tokens) : speakText(token.text));
         break;
       case "list":
-        for (const item of (token as Tokens.List).items) out.push(...speakBlocks(item.tokens));
+        for (const item of (token as Tokens.List).items) out.push(...speakBlocks(item.tokens, html));
         break;
       case "blockquote":
-        out.push(...speakBlocks(token.tokens ?? []));
+        out.push(...speakBlocks(token.tokens ?? [], html));
         break;
       case "table": {
         const table = token as Tokens.Table;
@@ -79,7 +80,7 @@ function speakBlocks(tokens: Token[]): string[] {
         break;
       }
       case "html":
-        out.push(...htmlText(token.text).split("\n"));
+        if (html) out.push(...speakHtml(token.text));
         break;
       // code, hr, space, def: nothing to say.
     }
@@ -88,16 +89,22 @@ function speakBlocks(tokens: Token[]): string[] {
 }
 
 /**
- * The prose in a raw HTML block, which Markdown articles can keep (`<div>Some prose</div>`): its
- * text, one line per line of markup, without scripts, styles, comments, or tags (so no image alt text).
+ * Raw HTML blocks, which Markdown articles can keep (`<div>Some prose</div>`), are parsed as HTML
+ * and turned into Markdown, then spoken like the rest: so code is skipped, links read as their
+ * text, and image alt text is dropped. Scripts and styles are removed first; on the HTML-article
+ * path Readability has already removed them, so this converter, unlike that one, must.
  */
-function htmlText(html: string): string {
-  return decodeEntities(
-    html
-      .replace(/<(script|style)\b[\s\S]*?<\/\1\s*>/gi, "")
-      .replace(/<!--[\s\S]*?-->/g, "")
-      .replace(/<[^>]*>/g, ""),
-  );
+const htmlConverter = new TurndownService({ codeBlockStyle: "fenced" }).remove([
+  "script",
+  "style",
+  "noscript",
+  "template",
+]);
+
+function speakHtml(html: string): string[] {
+  // Speak the converted Markdown without its own raw HTML: the converter keeps none, but decoded
+  // text such as "&lt;div&gt;" can lex as HTML again, and one level of unwrapping is enough.
+  return speakBlocks(marked.lexer(htmlConverter.turndown(html)), false);
 }
 
 /**
