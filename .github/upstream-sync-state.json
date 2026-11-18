@@ -1,6 +1,6 @@
 {
-  "upstream_commit": "50c5fc70e0b523b8a4fe7151323fb0375a2dfe6d",
-  "synced_at": "2026-10-27T02:49:22Z",
+  "upstream_commit": "9eec094e87a21d26b55df98dc74e7c7ba5a718ce",
+  "synced_at": "2026-11-17T18:44:31Z",
   "files": {
     ".gitignore": "5214d69d63a8d7e1da6c3a87fb8d60a0495d5446",
     ".prettierrc": "3fb08e968934016b56874c5cb9171b9ac10e1ff3",
@@ -28,7 +28,7 @@
     "metadata/reader-3.png": "deebb424f7c99e6c7706d7098856802b80351db8",
     "metadata/reader-4.png": "e2daa7dedebada3c7b18838e5b3a2d90d5a0b3fb",
     "package-lock.json": "f77ab49f5c7478059d45712f8966fbff608056c0",
-    "package.json": "98868938b1a9aaeb46242edebb672a71208f7073",
+    "package.json": "94269243872e702bb1788e2382ccb513d2995859",
     "scripts/summary-models.mjs": "0e114883ca3c9a1914d55739803d9c01c7d22e20",
     "scripts/sync-summary-models.mjs": "762fdadc7bfec591a5ff9dd1b5773beb060d651f",
     "src/actions/ArticleActions.tsx": "9b3b9c8146156e487aac6ddcc5691d0d4655349a",
