@@ -1,7 +1,7 @@
 import { execFile } from "child_process";
-import { failToast, showError } from "@chrismessina/raycast-kit/toast";
+import { showError } from "@chrismessina/raycast-kit/toast";
 import { crossLaunchCommand } from "raycast-cross-extension";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { LaunchType, open, showToast, Toast } from "@raycast/api";
 import { isMacOS } from "../utils/host-api";
 import { isSayRunning, readAloudText, SAY_EXTENSION } from "../utils/read-aloud";
@@ -40,9 +40,8 @@ function launchSay(name: string, args?: { content: string }) {
 export function useReadAloud(title: string, bodyMarkdown: string) {
   const [speaking, setSpeaking] = useState(false);
   // Launched, not yet heard. Nothing to stop yet (Say's Stop only ends speech that has begun), so
-  // neither action shows and the toast keeps spinning.
+  // neither action shows.
   const [starting, setStarting] = useState(false);
-  const toastRef = useRef<Toast | null>(null);
 
   useEffect(() => {
     if (!isMacOS) return;
@@ -61,29 +60,19 @@ export function useReadAloud(title: string, bodyMarkdown: string) {
     };
   }, []);
 
-  // A re-import mid-start unmounts this view; the remounted one can't reach the spinning toast.
-  useEffect(
-    () => () => {
-      if (toastRef.current?.style === Toast.Style.Animated) toastRef.current.hide();
-    },
-    [],
-  );
-
   useEffect(() => {
     if (!starting) return;
     if (speaking) {
       setStarting(false);
-      if (toastRef.current) showReading(toastRef.current);
       return;
     }
     // Speech that begins after this still gets its Stop action, from the observation above.
+    // A fresh toast, not the launch toast: by now another toast may hold the slot.
     const timer = setTimeout(() => {
       setStarting(false);
-      if (toastRef.current) {
-        failToast(toastRef.current, new Error("Say was launched but didn't start speaking within 10 seconds."), {
-          title: "Say Didn't Start",
-        });
-      }
+      showError(new Error("Say was launched but didn't start speaking within 10 seconds."), {
+        title: "Say Didn't Start",
+      });
     }, STARTUP_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [starting, speaking]);
@@ -92,32 +81,22 @@ export function useReadAloud(title: string, bodyMarkdown: string) {
     try {
       await launchSay(SAY_EXTENSION.stopCommand);
       setSpeaking(false);
-      await toastRef.current?.hide();
     } catch (error) {
       await showError(error, { title: "Couldn't Stop Say" });
     }
   }
 
-  function showReading(toast: Toast) {
-    toast.style = Toast.Style.Success;
-    toast.title = "Reading Aloud";
-    toast.primaryAction = { title: "Stop Reading Aloud", onAction: () => stop() };
-  }
-
   async function start(): Promise<void> {
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Starting Read Aloud…" });
-    toastRef.current = toast;
+    // Fresh toasts only: the launch can wait on Raycast's permission alert for as long as the user
+    // leaves it open, so a toast shown before it could have lost the slot by the time it resolves.
     try {
       await launchSay(SAY_EXTENSION.speakCommand, { content: readAloudText(title, bodyMarkdown) });
-      if (isMacOS) {
-        setStarting(true);
-      } else {
-        showReading(toast);
-        setSpeaking(true);
-      }
+      await showToast({ style: Toast.Style.Success, title: "Sent to Say" });
+      if (isMacOS) setStarting(true);
+      else setSpeaking(true);
     } catch (error) {
       // launchCommand throws when Say isn't installed, so offer the Store page.
-      failToast(toast, error, {
+      await showError(error, {
         title: "Couldn't Start Say",
         action: {
           title: "Install Say",
