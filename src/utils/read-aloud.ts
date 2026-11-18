@@ -1,5 +1,4 @@
 import { marked, type Token, type Tokens } from "marked";
-import TurndownService from "turndown";
 import { decodeEntities } from "./markdown-source";
 
 /** litomore's Say extension, launched through the raycast-cross-extension convention. */
@@ -55,7 +54,7 @@ function dropFootnoteDefinitions(markdown: string): string {
   return kept.join("\n");
 }
 
-function speakBlocks(tokens: Token[], html = true): string[] {
+function speakBlocks(tokens: Token[]): string[] {
   const out: string[] = [];
   for (const token of tokens) {
     switch (token.type) {
@@ -67,10 +66,10 @@ function speakBlocks(tokens: Token[], html = true): string[] {
         out.push(token.tokens ? speakInline(token.tokens) : speakText(token.text));
         break;
       case "list":
-        for (const item of (token as Tokens.List).items) out.push(...speakBlocks(item.tokens, html));
+        for (const item of (token as Tokens.List).items) out.push(...speakBlocks(item.tokens));
         break;
       case "blockquote":
-        out.push(...speakBlocks(token.tokens ?? [], html));
+        out.push(...speakBlocks(token.tokens ?? []));
         break;
       case "table": {
         const table = token as Tokens.Table;
@@ -79,32 +78,10 @@ function speakBlocks(tokens: Token[], html = true): string[] {
         }
         break;
       }
-      case "html":
-        if (html) out.push(...speakHtml(token.text));
-        break;
-      // code, hr, space, def: nothing to say.
+      // code, hr, html, space, def: nothing to say.
     }
   }
   return out.map((block) => block.replace(/[ \t]+/g, " ").trim()).filter(Boolean);
-}
-
-/**
- * Raw HTML blocks, which Markdown articles can keep (`<div>Some prose</div>`), are parsed as HTML
- * and turned into Markdown, then spoken like the rest: so code is skipped, links read as their
- * text, and image alt text is dropped. Scripts and styles are removed first; on the HTML-article
- * path Readability has already removed them, so this converter, unlike that one, must.
- */
-const htmlConverter = new TurndownService({ codeBlockStyle: "fenced" }).remove([
-  "script",
-  "style",
-  "noscript",
-  "template",
-]);
-
-function speakHtml(html: string): string[] {
-  // Speak the converted Markdown without its own raw HTML: the converter keeps none, but decoded
-  // text such as "&lt;div&gt;" can lex as HTML again, and one level of unwrapping is enough.
-  return speakBlocks(marked.lexer(htmlConverter.turndown(html)), false);
 }
 
 /**
