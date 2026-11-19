@@ -22,3 +22,8 @@ The named process that tries to retrieve gated content through a sequence of byp
 The JSON a server-rendered web app (Nuxt, Next.js) ships inside the page for the page to render from, read as a second source of the article alongside the visible page. Some publishers render a teaser from a payload that still holds the whole article, so the payload can recover what the visible page withholds.
 
 A payload article must open with a paragraph the page shows. When the visible page also yields an article, the payload replaces it only if it contains at least half of it and holds substantially more; when the visible page yields nothing, the opening match alone decides. These checks reduce the chance of a comment list or story card taking the article's place but don't rule it out. When it holds far more than the page shows, the article counts as **recovered from the payload**, and the page's gate markup, which describes the teaser, is no longer weighed as a Paywall Signal against it.
+
+## Read Aloud
+
+### Read Aloud
+Reader's action that speaks the open article, title first and then its prose one block at a time, through a separate speech extension (Say) that Reader launches and stops. Read Aloud is the feature and Say is only its engine, so the user-facing copy says "Read Aloud" and names Say only where the user has to act on Say itself, such as installing it. Speech is built from the article's parsed prose rather than from its raw text, so Markdown syntax is never read out; code, images, bare URLs and raw HTML are skipped.

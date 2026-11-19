@@ -54,3 +54,20 @@ Gate containers (`article-gate`, `content-gate`, `regwall`, `piano-*`, `[data-te
 ### `subscriber-only` and `metered` vs other barrier classes
 
 The cleaner strips the detector's barrier selectors before extraction so gate text can't pollute the article — with two carve-outs: `.subscriber-only`, and `meteredContent` / `metered-content` body wrappers (Medium and the NYT put the article in one). Sites mark gated article _content_ with them and may segment it (a class per block), and the per-element 30% protection guard can't save several sibling blocks each under 30%. So both are detected but never deleted. Other `metered` elements (a `meteredMessage` gate) and `meter-` banners are still stripped. The residual: a site that names its body wrapper some other `metered*` class loses segmented blocks below the guard. Every other barrier, including `[class*="premium"][class*="wrapper"]`, is stripped: a "wrapper" is a single container the 30% guard protects when it holds real content, so stripping it removes a gate-text leak without gutting an article. The residual — a premium-wrapper that is both deeply segmented _and_ real content — is possible but far less likely than the subscriber-only case, and is left stripped in favor of closing the leak.
+
+## Read Aloud: Raw HTML in Served Markdown
+
+**Status:** Accepted limitation, tracked in [chrismessina/raycast-reader#7](https://github.com/chrismessina/raycast-reader/issues/7).
+
+Read Aloud builds speech from the article's Markdown, one parsed token at a time (`src/utils/read-aloud.ts`), and skips raw HTML. That has two consequences:
+
+- **Prose inside raw HTML is not spoken**, e.g. a `<div class="note"><p>…</p></div>` in the Markdown.
+- **Script text can still be spoken in two shapes.**
+  - A `<script>` whose body follows a blank line: the Markdown parser ends the HTML block at the blank line, so the script body arrives as an ordinary paragraph.
+  - An inline `<script>…</script>` inside a paragraph: the tags are skipped, but the text between them is read.
+
+Both only arise in Markdown a site serves itself (a `.md` URL, an `Accept: text/markdown` response or a linked Markdown alternate). Articles read from a page's HTML are not affected, because `script` and `style` elements are removed while the page is converted to Markdown (`src/utils/markdown.ts`).
+
+### Why it isn't fixed
+
+Converting each raw HTML token on its own was tried twice, first with a regex stripper and then with turndown. Both were reverted: a token doesn't know which element it sits in, so script, style and code text leaked, and escaped prose was dropped. The fix is to build speech from a single parse of the whole article. See `docs/solutions/architecture-patterns/read-aloud-cannot-speak-raw-html-one-token-at-a-time.md`.
